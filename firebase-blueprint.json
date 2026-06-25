@@ -1,0 +1,45 @@
+{
+  "entities": {
+    "Reservation": {
+      "title": "Reservation",
+      "description": "A table booking at Rahito",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date", "description": "Date of reservation (YYYY-MM-DD)" },
+        "time": { "type": "string", "description": "Time of reservation (HH:mm)" },
+        "guests": { "type": "integer", "description": "Number of guests" },
+        "name": { "type": "string", "description": "Customer name" },
+        "email": { "type": "string", "format": "email", "description": "Customer email" },
+        "phone": { "type": "string", "description": "Customer phone number" },
+        "status": { "type": "string", "enum": ["confirmed", "cancelled", "attended"], "description": "Status of the reservation" },
+        "userId": { "type": "string", "description": "UID of the user if authenticated" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "tableId": { "type": "string", "description": "Identifier of the assigned table" },
+        "tableName": { "type": "string", "description": "Friendly name of the assigned table" }
+      },
+      "required": ["date", "time", "guests", "name", "email", "phone", "status", "createdAt", "updatedAt"]
+    },
+    "Setting": {
+      "title": "Setting",
+      "description": "Global settings and layouts",
+      "type": "object",
+      "properties": {
+        "tables": {
+          "type": "array",
+          "description": "Array of table structures for TableFlow layout"
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/reservations/{reservationId}": {
+      "schema": "Reservation",
+      "description": "Collection of table reservations"
+    },
+    "/settings/{settingId}": {
+      "schema": "Setting",
+      "description": "Restaurant setting configurations"
+    }
+  }
+}
