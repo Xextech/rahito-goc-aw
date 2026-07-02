@@ -99,6 +99,10 @@ export interface Translation {
   adminBtnConfirm: string;
   adminTabCalendar: string;
   adminTabList: string;
+  gdprConsentCheckbox: string;
+  gdprConsentError: string;
+  legalPrivacyPolicyTitle: string;
+  legalTermsOfServiceTitle: string;
 }
 
 export const translations: Record<Language, Translation> = {
@@ -183,7 +187,11 @@ export const translations: Record<Language, Translation> = {
     adminBtnCancel: "Cancelar",
     adminBtnConfirm: "Confirmar",
     adminTabCalendar: "Vista Calendario",
-    adminTabList: "Ver Todas"
+    adminTabList: "Ver Todas",
+    gdprConsentCheckbox: "Acepto las condiciones generales y la política de privacidad",
+    gdprConsentError: "Debe aceptar las condiciones y la política de privacidad",
+    legalPrivacyPolicyTitle: "Política de Privacidad",
+    legalTermsOfServiceTitle: "Términos de Servicio"
   },
   pl: {
     navMenu: "Menu",
@@ -266,6 +274,10 @@ export const translations: Record<Language, Translation> = {
     adminBtnCancel: "Anuluj",
     adminBtnConfirm: "Potwierdź",
     adminTabCalendar: "Widok Kalendarza",
-    adminTabList: "Wszystkie Rezerwacje"
+    adminTabList: "Wszystkie Rezerwacje",
+    gdprConsentCheckbox: "Akceptuję regulamin oraz politykę prywatności",
+    gdprConsentError: "Musisz zaakceptować regulamin i politykę prywatności",
+    legalPrivacyPolicyTitle: "Polityka Prywatności",
+    legalTermsOfServiceTitle: "Regulamin Usługi"
   }
 };
