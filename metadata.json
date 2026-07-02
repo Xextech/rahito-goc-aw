@@ -1,0 +1,6 @@
+{
+  "name": "Rahito Głogów",
+  "description": "Exclusive dining experience in Głogów, Poland. Book your table through our modern reservation system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
