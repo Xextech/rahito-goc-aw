@@ -61,10 +61,13 @@ export default function TableFlow({
   const [draggedTableId, setDraggedTableId] = useState<string | null>(null);
 
   // Available times (matching ReservationForm TIME_SLOTS)
-  const TIME_SLOTS = [
-    "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
-    "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"
-  ];
+  // Generate half-hour slots from 08:00 to 22:00
+  const TIME_SLOTS: string[] = [];
+  for (let h = 8; h <= 22; h++) {
+    const hh = String(h).padStart(2, '0');
+    TIME_SLOTS.push(`${hh}:00`);
+    if (h !== 22) TIME_SLOTS.push(`${hh}:30`);
+  }
 
   // Fetch or setup Table layout in Firestore
   useEffect(() => {
@@ -275,10 +278,10 @@ export default function TableFlow({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
+          <div className="flex items-center gap-3 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
           <span className="text-[10px] uppercase tracking-widest text-stone-500 mr-2 flex-shrink-0">{t.resTime}:</span>
           <div className="flex gap-1.5 overflow-x-auto max-w-lg">
-            {["12:00", "13:00", "14:00", "18:00", "19:00", "20:00", "21:00"].map((slot) => (
+            {TIME_SLOTS.filter((s, idx) => idx % 2 === 0).map((slot) => (
               <button
                 key={slot}
                 onClick={() => {

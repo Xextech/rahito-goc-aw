@@ -12,7 +12,7 @@ import { cn } from "./lib/utils";
 export function LogoIcon({ className = "w-8 h-8" }: { className?: string }) {
   return (
     <img
-      src="/logo_dorado.png"
+      src="/logo-dorado.png"
       alt="Rahito Logo"
       className={cn("w-full h-full object-contain", className)}
       referrerPolicy="no-referrer"
@@ -713,9 +713,14 @@ export default function App() {
           </div>
           <div className="space-y-8">
              <h5 className="text-[10px] uppercase tracking-[0.4em] text-gold font-bold">{t.footerHours}</h5>
-             <div className="text-stone-400 text-sm font-light space-y-2 uppercase tracking-widest text-[11px]">
-               <p>{t.footerHoursWeekdays}</p>
-               <p>{t.footerHoursWeekends}</p>
+             <div className="text-stone-400 text-sm font-light space-y-1 tracking-tight text-[13px]">
+               <p className="uppercase text-[10px] tracking-[0.35em] text-stone-600">{t.footerHoursMon}</p>
+               <p className="uppercase text-[10px] tracking-[0.35em] text-stone-600">{t.footerHoursTue}</p>
+               <p className="uppercase text-[10px] tracking-[0.35em] text-stone-600">{t.footerHoursWed}</p>
+               <p className="uppercase text-[10px] tracking-[0.35em] text-stone-600">{t.footerHoursThu}</p>
+               <p className="uppercase text-[10px] tracking-[0.35em] text-stone-600">{t.footerHoursFri}</p>
+               <p className="uppercase text-[10px] tracking-[0.35em] text-stone-600">{t.footerHoursSat}</p>
+               <p className="uppercase text-[10px] tracking-[0.35em] text-stone-600">{t.footerHoursSun}</p>
              </div>
           </div>
           <div className="space-y-8">

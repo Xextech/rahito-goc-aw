@@ -8,10 +8,13 @@ import { motion, AnimatePresence } from "motion/react";
 import { Calendar as CalendarIcon, Users, Clock, CheckCircle2, AlertCircle, Utensils } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 
-const TIME_SLOTS = [
-  "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
-  "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"
-];
+// Generate half-hour slots from 08:00 to 22:00
+const TIME_SLOTS: string[] = [];
+for (let h = 8; h <= 22; h++) {
+  const hh = String(h).padStart(2, '0');
+  TIME_SLOTS.push(`${hh}:00`);
+  if (h !== 22) TIME_SLOTS.push(`${hh}:30`);
+}
 
 export default function ReservationForm() {
   const { lang, t } = useLanguage();
@@ -161,20 +164,28 @@ export default function ReservationForm() {
               <div className="space-y-6">
                 <label className="text-[10px] uppercase tracking-widest text-stone-500 block">{t.resAvailableHours}</label>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {TIME_SLOTS.map((t_slot) => (
-                    <button
-                      key={t_slot}
-                      onClick={() => setTime(t_slot)}
-                      className={cn(
-                        "py-3 text-[11px] border transition-all uppercase tracking-widest relative overflow-hidden",
-                        time === t_slot
-                          ? "bg-gold text-dark border-gold font-bold"
-                          : "bg-dark text-stone-500 border-border hover:border-gold hover:text-stone-300"
-                      )}
-                    >
-                      {t_slot}
-                    </button>
-                  ))}
+                  {(() => {
+                    const isMonday = date.getDay() === 1; // 1 = Monday
+                    if (isMonday) {
+                      return (
+                        <div className="col-span-3 sm:col-span-4 text-center text-stone-500 py-4 italic">{lang === 'es' ? 'Cerrado' : 'Zamknięte'}</div>
+                      );
+                    }
+                    return TIME_SLOTS.map((t_slot) => (
+                      <button
+                        key={t_slot}
+                        onClick={() => setTime(t_slot)}
+                        className={cn(
+                          "py-3 text-[11px] border transition-all uppercase tracking-widest relative overflow-hidden",
+                          time === t_slot
+                            ? "bg-gold text-dark border-gold font-bold"
+                            : "bg-dark text-stone-500 border-border hover:border-gold hover:text-stone-300"
+                        )}
+                      >
+                        {t_slot}
+                      </button>
+                    ));
+                  })()}
                 </div>
               </div>
 

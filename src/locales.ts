@@ -74,6 +74,13 @@ export interface Translation {
   footerHours: string;
   footerHoursWeekdays: string;
   footerHoursWeekends: string;
+  footerHoursMon: string;
+  footerHoursTue: string;
+  footerHoursWed: string;
+  footerHoursThu: string;
+  footerHoursFri: string;
+  footerHoursSat: string;
+  footerHoursSun: string;
   footerInquiries: string;
   footerRights: string;
   footerPrivacy: string;
@@ -159,8 +166,15 @@ export const translations: Record<Language, Translation> = {
     footerLocation: "Ubicación",
     footerAddress: "Stawna 8, 67-200 Głogów, Polonia",
     footerHours: "Horario de Servicio",
-    footerHoursWeekdays: "Lun - Vie: 12:00 - 22:00",
-    footerHoursWeekends: "Sáb - Dom: 13:00 - 23:00",
+    footerHoursWeekdays: "Lun - Vie: 08:00 - 20:00 / Vie-Sáb: 08:00 - 22:00",
+    footerHoursWeekends: "",
+    footerHoursMon: "Lunes: Cerrado",
+    footerHoursTue: "Martes: 8:00–20:00",
+    footerHoursWed: "Miércoles: 8:00–20:00",
+    footerHoursThu: "Jueves: 8:00–20:00",
+    footerHoursFri: "Viernes: 8:00–22:00",
+    footerHoursSat: "Sábado: 8:00–22:00",
+    footerHoursSun: "Domingo: 8:00–20:00",
     footerInquiries: "Consultas",
     footerRights: "© 2026 RAHITO GŁOGÓW • LUZ Y SOMBRA",
     footerPrivacy: "Política de Privacidad",
@@ -242,8 +256,15 @@ export const translations: Record<Language, Translation> = {
     footerLocation: "Lokalizacja",
     footerAddress: "Stawna 8, 67-200 Głogów, Polonia",
     footerHours: "Godziny Otwarcia",
-    footerHoursWeekdays: "Pon - Pt: 12:00 - 22:00",
-    footerHoursWeekends: "Sob - Niedz: 13:00 - 23:00",
+    footerHoursWeekdays: "Pon - Pt: 08:00 - 20:00 / Pt-Sob: 08:00 - 22:00",
+    footerHoursWeekends: "",
+    footerHoursMon: "Poniedziałek: Zamknięte",
+    footerHoursTue: "Wtorek: 8:00–20:00",
+    footerHoursWed: "Środa: 8:00–20:00",
+    footerHoursThu: "Czwartek: 8:00–20:00",
+    footerHoursFri: "Piątek: 8:00–22:00",
+    footerHoursSat: "Sobota: 8:00–22:00",
+    footerHoursSun: "Niedziela: 8:00–20:00",
     footerInquiries: "Kontakt",
     footerRights: "© 2026 RAHITO GŁOGÓW • ŚWIATŁO I CIEŃ",
     footerPrivacy: "Polityka Prywatności",
