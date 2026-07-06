@@ -1,60 +1,10 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Star, Quote, ExternalLink } from 'lucide-react';
+import { Star, ExternalLink } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
-interface GoogleReview {
-  author_name: string;
-  rating: number;
-  relative_time: Record<'es' | 'pl', string>;
-  text: Record<'es' | 'pl', string>;
-  profile_photo_url: string;
-}
-
-const TRANSLATED_REVIEWS: GoogleReview[] = [
-  {
-    author_name: "Aleksandra Kamińska",
-    rating: 5,
-    relative_time: {
-      es: "Hace 2 semanas",
-      pl: "2 tygodnie temu"
-    },
-    text: {
-      es: "Absolutamente increíble. La paella de marisco fue una revelación, con el sabor auténtico de España. El ambiente en Głogów es íntimo y sofisticado. Sin duda la mejor cocina mediterránea de la región ahora mismo.",
-      pl: "Absolutnie niesamowite. Paella de Marisco była rewelacją, z prawdziwym, autentycznym hiszpańskim smakiem. Atmosfera w Głogowie jest kameralna i wyrafinowana. Bez wątpienia najlepsza kuchnia śródziemnomorska w regionie."
-    },
-    profile_photo_url: "https://i.pravatar.cc/150?u=aleksandra"
-  },
-  {
-    author_name: "Marek Wiśniewski",
-    rating: 5,
-    relative_time: {
-      es: "Hace 1 mes",
-      pl: "Miesiąc temu"
-    },
-    text: {
-      es: "Rahito es una joya escondida. La atención al detalle en cada plato y el toque casero de las recetas de la abuela es insuperable. El jamón ibérico de bellota y las empanadas son obligatorios.",
-      pl: "Rahito to ukryty klejnot. Dbałość o szczegóły w każdym daniu i domowy charakter przepisów babci są nie do pobicia. Szynka iberyjska i empanadas to pozycje obowiązkowe."
-    },
-    profile_photo_url: "https://i.pravatar.cc/150?u=marek"
-  },
-  {
-    author_name: "Elena Rodriguez",
-    rating: 5,
-    relative_time: {
-      es: "Hace 3 días",
-      pl: "3 dni temu"
-    },
-    text: {
-      es: "Diseño minimalista precioso y cocina tradicional de altísimo nivel. Las paellas y el postre de torrija caramelizada son espectaculares. El servicio es impecable. ¡Vale totalmente la pena!",
-      pl: "Piękny minimalistyczny design i tradycyjna kuchnia na najwyższym poziomie. Paella oraz karmelizowana torrija na deser są spektakularne. Obsługa jest nienaganna. Całkowicie warto!"
-    },
-    profile_photo_url: "https://i.pravatar.cc/150?u=elena"
-  }
-];
-
 export default function Reviews() {
-  const { lang, t } = useLanguage();
+  const { t } = useLanguage();
   
   return (
     <section className="py-20 sm:py-32 md:py-40 px-6 bg-dark border-t border-border" id="reviews">
@@ -78,51 +28,33 @@ export default function Reviews() {
           </motion.div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-          {TRANSLATED_REVIEWS.map((review, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.1 }}
-              className="group p-10 border border-border bg-stone-900/20 relative hover:border-gold/50 transition-all duration-500"
+        <div className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="overflow-hidden border border-border bg-stone-900/20 rounded-2xl shadow-2xl shadow-black/20"
+          >
+            <div className="relative w-full h-[430px] sm:h-[520px] lg:h-[640px]">
+              <iframe
+                src="https://widgets.sociablekit.com/google-reviews/iframe/25694992"
+                title="Reseñas de Google de Rahito"
+                frameBorder="0"
+                loading="lazy"
+                className="absolute inset-0 h-full w-full"
+              />
+            </div>
+          </motion.div>
+          <div className="text-center pt-0 -mt-1">
+            <a 
+              href="https://www.google.com/maps/place/RAHITO+Restauracja+Hiszpa%C5%84ska/@51.6615367,16.0802946,17z/data=!3m1!4b1!4m16!1m7!3m6!1s0x4705f53746a6bb2f:0xfa16400786a855e6!2sRAHITO+Restauracja+Hiszpa%C5%84ska!8m2!3d51.6615334!4d16.0828695!16s%2Fg%2F11yhxct1qs!3m7!1s0x4705f53746a6bb2f:0xfa16400786a855e6!8m2!3d51.6615334!4d16.0828695!9m1!1b1!16s%2Fg%2F11yhxct1qs?authuser=0&entry=ttu&g_ep=EgoyMDI2MDYyOS4wIKXMDSoASAFQAw%3D%3D" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="inline-flex items-center gap-3 text-[10px] uppercase tracking-[0.4em] text-stone-600 hover:text-gold transition-colors group"
             >
-              <Quote className="absolute top-6 right-8 text-stone-800 group-hover:text-gold/20 transition-colors" size={48} />
-              
-              <div className="flex items-center gap-4 mb-8">
-                <img 
-                  src={review.profile_photo_url} 
-                  alt={review.author_name} 
-                  className="w-12 h-12 rounded-full border border-border group-hover:border-gold transition-colors"
-                />
-                <div>
-                  <h4 className="text-stone-100 font-serif italic text-lg">{review.author_name}</h4>
-                  <div className="flex items-center gap-1 text-gold">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} size={10} fill={i < review.rating ? "currentColor" : "none"} />
-                    ))}
-                    <span className="text-[9px] text-stone-600 ml-2 uppercase tracking-widest">{review.relative_time[lang]}</span>
-                  </div>
-                </div>
-              </div>
-
-              <p className="text-stone-400 font-light leading-relaxed tracking-wide italic text-sm">
-                "{review.text[lang]}"
-              </p>
-            </motion.div>
-          ))}
-        </div>
-
-        <div className="text-center pt-10">
-           <a 
-            href="https://google.com" 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="inline-flex items-center gap-3 text-[10px] uppercase tracking-[0.4em] text-stone-600 hover:text-gold transition-colors group"
-           >
-             {t.reviewsMore} <ExternalLink size={14} className="group-hover:translate-x-1 transition-transform" />
-           </a>
+              {t.reviewsMore} <ExternalLink size={14} className="group-hover:translate-x-1 transition-transform" />
+            </a>
+          </div>
         </div>
       </div>
     </section>
