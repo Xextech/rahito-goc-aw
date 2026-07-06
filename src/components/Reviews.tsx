@@ -7,8 +7,8 @@ export default function Reviews() {
   const { t } = useLanguage();
   
   return (
-    <section className="py-20 sm:py-32 md:py-40 px-6 bg-dark border-t border-border" id="reviews">
-      <div className="max-w-7xl mx-auto space-y-24">
+    <section className="pt-20 sm:pt-32 md:pt-40 pb-4 sm:pb-6 md:pb-8 px-6 bg-dark border-t border-border" id="reviews">
+      <div className="max-w-7xl mx-auto space-y-8">
         <div className="text-center space-y-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

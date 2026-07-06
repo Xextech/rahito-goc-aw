@@ -16,6 +16,20 @@ export default defineConfig(({mode}) => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    build: {
+      // Improve chunking to avoid very large bundles in production
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react')) return 'vendor_react';
+              if (id.includes('lucide-react') || id.includes('motion') || id.includes('jimp')) return 'vendor_ui';
+              return 'vendor';
+            }
+          },
+        },
+      },
+    },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
