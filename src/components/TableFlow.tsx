@@ -7,6 +7,9 @@ import { format } from "date-fns";
 import { es, pl } from "date-fns/locale";
 import { cn } from "../lib/utils";
 
+const SLOT_CAPACITY = 20;
+const FULL_SINGLE_THRESHOLD = 10;
+
 interface TableDef {
   id: string;
   name: string;
@@ -281,7 +284,35 @@ export default function TableFlow({
           <div className="flex items-center gap-3 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
           <span className="text-[10px] uppercase tracking-widest text-stone-500 mr-2 flex-shrink-0">{t.resTime}:</span>
           <div className="flex gap-1.5 overflow-x-auto max-w-lg">
-            {TIME_SLOTS.filter((s, idx) => idx % 2 === 0).map((slot) => (
+            {(() => {
+              // compute occupancy for selectedDate from reservations prop
+              const dateRes = reservations.filter(r => r.date === selectedDate && r.status === 'confirmed');
+              const occMap: Record<string, { total: number; hasLarge: boolean }> = {};
+              dateRes.forEach(r => {
+                const t = r.time;
+                const g = r.guests || 0;
+                if (!occMap[t]) occMap[t] = { total: 0, hasLarge: false };
+                occMap[t].total += g;
+                if (g >= FULL_SINGLE_THRESHOLD) occMap[t].hasLarge = true;
+              });
+
+              // determine disabled slots
+              const disabled = new Set<string>();
+              TIME_SLOTS.forEach((s, idx) => {
+                const info = occMap[s];
+                const total = info?.total ?? 0;
+                const hasLarge = info?.hasLarge ?? false;
+                const isFull = hasLarge || total >= SLOT_CAPACITY;
+                if (isFull) {
+                  disabled.add(s);
+                  for (let k = 1; k <= 4; k++) {
+                    const next = TIME_SLOTS[idx + k];
+                    if (next) disabled.add(next);
+                  }
+                }
+              });
+
+              return TIME_SLOTS.filter((s, idx) => idx % 2 === 0).map((slot) => (
               <button
                 key={slot}
                 onClick={() => {
@@ -290,14 +321,17 @@ export default function TableFlow({
                 }}
                 className={cn(
                   "px-3 py-1.5 text-[10px] tracking-widest border transition-all rounded font-mono",
-                  activeTimeSlot === slot
-                    ? "bg-gold text-dark border-gold font-bold"
-                    : "bg-stone-950 text-stone-500 border-border hover:border-stone-700"
+                  disabled.has(slot)
+                    ? "bg-stone-800 text-stone-600 border-border pointer-events-none opacity-60"
+                    : activeTimeSlot === slot
+                      ? "bg-gold text-dark border-gold font-bold"
+                      : "bg-stone-950 text-stone-500 border-border hover:border-stone-700"
                 )}
               >
                 {slot}
               </button>
-            ))}
+              ));
+            })()}
           </div>
         </div>
       </div>

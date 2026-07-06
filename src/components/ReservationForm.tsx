@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { format, addDays, startOfToday, isSameDay } from "date-fns";
 import { es, pl } from "date-fns/locale";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
@@ -15,6 +15,9 @@ for (let h = 8; h <= 22; h++) {
   TIME_SLOTS.push(`${hh}:00`);
   if (h !== 22) TIME_SLOTS.push(`${hh}:30`);
 }
+
+const SLOT_CAPACITY = 20; // total capacity per timeslot
+const FULL_SINGLE_THRESHOLD = 10; // single reservation >= this counts as full
 
 export default function ReservationForm() {
   const { lang, t } = useLanguage();
@@ -31,8 +34,34 @@ export default function ReservationForm() {
   const [error, setError] = useState<string | null>(null);
   const [bookingRef, setBookingRef] = useState<string | null>(null);
 
+  // occupancy map: { 'yyyy-mm-dd': { '08:00': { total: number, hasLarge: boolean } } }
+  const [occupancy, setOccupancy] = useState<Record<string, Record<string, { total: number; hasLarge: boolean }>>>({});
+
   const activeLocale = lang === "es" ? es : pl;
   const availableDates = Array.from({ length: 14 }, (_, i) => addDays(startOfToday(), i + 1));
+
+  // Listen to reservations for next 14 days and build occupancy map
+  useEffect(() => {
+    const start = format(availableDates[0], "yyyy-MM-dd");
+    const end = format(availableDates[availableDates.length - 1], "yyyy-MM-dd");
+    const q = query(collection(db, "reservations"), where("date", ">=", start), where("date", "<=", end));
+    const unsub = onSnapshot(q, (snap) => {
+      const map: Record<string, Record<string, { total: number; hasLarge: boolean }>> = {};
+      snap.docs.forEach((d) => {
+        const data: any = d.data();
+        if (!data || !data.date || !data.time || !data.guests) return;
+        const date = data.date as string;
+        const time = data.time as string;
+        const guests = Number(data.guests) || 0;
+        if (!map[date]) map[date] = {};
+        if (!map[date][time]) map[date][time] = { total: 0, hasLarge: false };
+        map[date][time].total += guests;
+        if (guests >= FULL_SINGLE_THRESHOLD) map[date][time].hasLarge = true;
+      });
+      setOccupancy(map);
+    });
+    return () => unsub();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,26 +194,63 @@ export default function ReservationForm() {
                 <label className="text-[10px] uppercase tracking-widest text-stone-500 block">{t.resAvailableHours}</label>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                   {(() => {
-                    const isMonday = date.getDay() === 1; // 1 = Monday
+                    // 1 = Monday, 0 = Sunday
+                    const isMonday = date.getDay() === 1;
                     if (isMonday) {
                       return (
                         <div className="col-span-3 sm:col-span-4 text-center text-stone-500 py-4 italic">{lang === 'es' ? 'Cerrado' : 'Zamknięte'}</div>
                       );
                     }
-                    return TIME_SLOTS.map((t_slot) => (
-                      <button
-                        key={t_slot}
-                        onClick={() => setTime(t_slot)}
-                        className={cn(
-                          "py-3 text-[11px] border transition-all uppercase tracking-widest relative overflow-hidden",
-                          time === t_slot
-                            ? "bg-gold text-dark border-gold font-bold"
-                            : "bg-dark text-stone-500 border-border hover:border-gold hover:text-stone-300"
-                        )}
-                      >
-                        {t_slot}
-                      </button>
-                    ));
+
+                    // occupancy for selected date
+                    const dateStr = format(date, "yyyy-MM-dd");
+                    const dayOccupancy = occupancy[dateStr] || {};
+
+                    // determine disabled slots including follow-up blocking
+                    const disabledSlots = new Set<string>();
+                    TIME_SLOTS.forEach((slot, idx) => {
+                      const info = dayOccupancy[slot];
+                      const total = info?.total ?? 0;
+                      const hasLarge = info?.hasLarge ?? false;
+                      const isFull = hasLarge || total >= SLOT_CAPACITY;
+                      if (isFull) {
+                        disabledSlots.add(slot);
+                        // block next 2 hours -> next 4 half-hour slots
+                        for (let k = 1; k <= 4; k++) {
+                          const next = TIME_SLOTS[idx + k];
+                          if (next) disabledSlots.add(next);
+                        }
+                      }
+                    });
+
+                    return TIME_SLOTS.map((t_slot, idx) => {
+                      const info = dayOccupancy[t_slot];
+                      const total = info?.total ?? 0;
+                      const hasLarge = info?.hasLarge ?? false;
+                      const isFull = hasLarge || total >= SLOT_CAPACITY;
+                      const disabled = disabledSlots.has(t_slot);
+
+                      return (
+                        <button
+                          key={t_slot}
+                          onClick={() => setTime(t_slot)}
+                          disabled={disabled}
+                          className={cn(
+                            "py-3 text-[11px] border transition-all uppercase tracking-widest relative overflow-hidden",
+                            disabled
+                              ? "bg-stone-800 text-stone-600 border-border pointer-events-none opacity-60"
+                              : time === t_slot
+                                ? "bg-gold text-dark border-gold font-bold"
+                                : "bg-dark text-stone-500 border-border hover:border-gold hover:text-stone-300"
+                          )}
+                        >
+                          {t_slot}
+                          {disabled && (
+                            <span aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0 4px, transparent 4px 8px)' }} />
+                          )}
+                        </button>
+                      );
+                    });
                   })()}
                 </div>
               </div>
@@ -192,7 +258,7 @@ export default function ReservationForm() {
               <div className="space-y-6">
                 <label className="text-[10px] uppercase tracking-widest text-stone-500 block">{t.resPartySize}</label>
                 <div className="flex gap-3 flex-wrap">
-                  {[1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20].map((n) => (
+                  {[1,2,3,4,5,6,7,8,9,10].map((n) => (
                     <button
                       key={n}
                       onClick={() => setGuests(n)}
