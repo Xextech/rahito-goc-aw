@@ -54,15 +54,15 @@ export default function App() {
       return params.get("admin") === "true" || window.location.hash === "#admin";
     }
     return false;
-    {
-      id: "dish_2",
-      tag: lang === "es" ? "RECORRIDO" : "KLASYKA",
-      title: lang === "es" ? "Tabla de Quesos y Embutidos" : "Deska Serów i Wędlin",
-      desc: lang === "es"
-        ? "Un recorrido por el mapa quesero y de charcutería artesanal. Selección de quesos curados de oveja y cabra, acompañados de embutidos tradicionales curados al aire de la sierra."
-        : "Podróż po mapie hiszpańskich serów i wędlin rzemieślniczych. Wybór dojrzałych serów owczych i kozich w towarzystwie tradycyjnych wędlin dojrzewających na górskim powietrzu.",
-      img: "/bandeja-de-surtido.v2.jpg"
-    },
+  });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+
+  // States and data for the cinematic 'image-video' interior slideshow
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [slideSourceIndices, setSlideSourceIndices] = useState<Record<string, number>>({
+    interior_1: 0,
     interior_2: 0
   });
 
@@ -158,13 +158,13 @@ export default function App() {
       img: "/paella marisco 2.jpg"
     },
     {
-      id: "dish_8",
-      tag: lang === "es" ? "TRADICIÓN" : "TRADYCJA",
-      title: lang === "es" ? "Paella de Conejo y Romero" : "Paella z Królikiem i Rozmarynem",
+      id: "dish_2",
+      tag: lang === "es" ? "RECORRIDO" : "KLASYKA",
+      title: lang === "es" ? "Tabla de Quesos y Embutidos" : "Deska Serów i Wędlin",
       desc: lang === "es"
-        ? "La esencia del interior mediterráneo. Arroz meloso cocinado lentamente con tierno conejo de campo, judías planas tradicionales y un toque ahumado de romero silvestre fresco."
-        : "Esencja śródziemnomorskiego wnętrza kraju. Wolno gotowany, aromatyczny ryż z delikatnym królikiem, tradycyjną płaską fasolą i wędzonym akcentem świeżego dzikiego rozmarynu.",
-      img: "/paella-de-conejo.v2.jpg"
+        ? "Un recorrido por el mapa quesero y de charcutería artesanal. Selección de quesos curados de oveja y cabra, acompañados de embutidos tradicionales curados al aire de la sierra."
+        : "Podróż po mapie hiszpańskich serów i wędlin rzemieślniczych. Wybór dojrzałych serów owczych i kozich w towarzystwie tradycyjnych wędlin dojrzewających na górskim powietrzu.",
+      img: "/bandeja-de-surtido.v2.jpg"
     },
     {
       id: "dish_3",
@@ -621,20 +621,7 @@ export default function App() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
               {[0, 1, 2].map((offset) => {
                 const itemIdx = (menuIndex + offset) % dishes.length;
-                let item = dishes[itemIdx];
-                // swap visual positions for the cuadricula: if this slot would show paella de conejo or bandeja de surtido,
-                // show the other instead so they appear swapped in the 3-grid view only.
-                try {
-                  if (item?.id === 'dish_2') {
-                    const alt = dishes.find(d => d.id === 'dish_8');
-                    if (alt) item = alt;
-                  } else if (item?.id === 'dish_8') {
-                    const alt = dishes.find(d => d.id === 'dish_2');
-                    if (alt) item = alt;
-                  }
-                } catch (e) {
-                  // noop
-                }
+                const item = dishes[itemIdx];
                 return (
                   <motion.div 
                     key={`${item.id}-${offset}`} 
