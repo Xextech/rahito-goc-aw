@@ -20,8 +20,8 @@ const TRANSLATED_REVIEWS: GoogleReview[] = [
       pl: "2 tygodnie temu"
     },
     text: {
-      es: "Absolutamente increíble. El Omakase fue una revelación. El ambiente en Głogów es íntimo y sofisticado. Sin duda el mejor japonés de la región ahora mismo.",
-      pl: "Absolutnie niesamowite. Omakase było rewelacją. Atmosfera w Głogowie jest kameralna i wyrafinowana. Bez wątpienia najlepsza japońska kuchnia w regionie."
+      es: "Absolutamente increíble. La paella de marisco fue una revelación, con el sabor auténtico de España. El ambiente en Głogów es íntimo y sofisticado. Sin duda la mejor cocina mediterránea de la región ahora mismo.",
+      pl: "Absolutnie niesamowite. Paella de Marisco była rewelacją, z prawdziwym, autentycznym hiszpańskim smakiem. Atmosfera w Głogowie jest kameralna i wyrafinowana. Bez wątpienia najlepsza kuchnia śródziemnomorska w regionie."
     },
     profile_photo_url: "https://i.pravatar.cc/150?u=aleksandra"
   },
@@ -33,21 +33,21 @@ const TRANSLATED_REVIEWS: GoogleReview[] = [
       pl: "Miesiąc temu"
     },
     text: {
-      es: "Rahito es una joya escondida. La atención al detalle en cada plato de Wagyu es insuperable. Una experiencia de 'luz y sombra' que no te puedes perder.",
-      pl: "Rahito to ukryty klejnot. Dbałość o szczegóły w każdym daniu z Wagyu jest niezrównana. Doświadczenie 'światła i cienia', którego nie można przegapić."
+      es: "Rahito es una joya escondida. La atención al detalle en cada plato y el toque casero de las recetas de la abuela es insuperable. El jamón ibérico de bellota y las empanadas son obligatorios.",
+      pl: "Rahito to ukryty klejnot. Dbałość o szczegóły w każdym daniu i domowy charakter przepisów babci są nie do pobicia. Szynka iberyjska i empanadas to pozycje obowiązkowe."
     },
     profile_photo_url: "https://i.pravatar.cc/150?u=marek"
   },
   {
     author_name: "Elena Rodriguez",
-    rating: 4,
+    rating: 5,
     relative_time: {
       es: "Hace 3 días",
       pl: "3 dni temu"
     },
     text: {
-      es: "Diseño minimalista precioso y comida de autor de altísimo nivel. El servicio es impecable. Un poco difícil de reservar pero vale totalmente la pena.",
-      pl: "Piękny minimalistyczny design i autorskie jedzenie na najwyższym poziomie. Obsługa jest nienaganna. Trochę trudno o rezerwację, ale całkowicie warto."
+      es: "Diseño minimalista precioso y cocina tradicional de altísimo nivel. Las paellas y el postre de torrija caramelizada son espectaculares. El servicio es impecable. ¡Vale totalmente la pena!",
+      pl: "Piękny minimalistyczny design i tradycyjna kuchnia na najwyższym poziomie. Paella oraz karmelizowana torrija na deser są spektakularne. Obsługa jest nienaganna. Całkowicie warto!"
     },
     profile_photo_url: "https://i.pravatar.cc/150?u=elena"
   }

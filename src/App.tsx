@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion, useScroll, useTransform, AnimatePresence } from "motion/react";
-import { MapPin, Phone, Instagram, Facebook, Utensils, Award, Star, ArrowDown, Globe, Shield, Menu as MenuIcon, X } from "lucide-react";
+import { MapPin, Phone, Instagram, Facebook, Utensils, Award, Star, ArrowDown, Globe, Shield, Menu as MenuIcon, X, ChevronLeft, ChevronRight } from "lucide-react";
 import ReservationForm from "./components/ReservationForm";
 import Reviews from "./components/Reviews";
 import AdminPortal from "./components/AdminPortal";
@@ -10,21 +10,12 @@ import { cn } from "./lib/utils";
 // Beautiful monochrome Spanish Bull head SVG LogoIcon
 export function LogoIcon({ className = "w-8 h-8" }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 100 100"
-      className={cn("w-full h-full text-current", className)}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M50,35 C44,35 38,30 35,24 C33,20 34,15 38,12 C32,18 24,24 23,32 C22,37 27,41 33,43 C30,44 26,43 23,42 C25,45 29,48 32,50 C35,58 37,64 38,70 C39,76 43,80 50,80 C57,80 61,76 62,70 C63,64 65,58 68,50 C71,48 75,45 77,42 C74,43 70,44 67,43 C73,41 78,37 77,32 C76,24 68,18 62,12 C66,15 67,20 65,24 C62,30 56,35 50,35 Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="3.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <img
+      src="/logo_dorado.png"
+      alt="Rahito Logo"
+      className={cn("w-full h-full object-contain", className)}
+      referrerPolicy="no-referrer"
+    />
   );
 }
 
@@ -56,7 +47,13 @@ export default function App() {
   const heroScale = useTransform(scrollYProgress, [0, 0.2], [1, 1.05]);
   
   const { lang, setLang, t } = useLanguage();
-  const [showAdmin, setShowAdmin] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("admin") === "true" || window.location.hash === "#admin";
+    }
+    return false;
+  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // States and data for the cinematic 'image-video' interior slideshow
@@ -143,6 +140,100 @@ export default function App() {
     }, 4500);
     return () => clearInterval(timer);
   }, []);
+
+  // States and data for the menu/experience dishes carousel
+  const [menuIndex, setMenuIndex] = useState(0);
+
+  const dishes = [
+    {
+      id: "dish_1",
+      tag: lang === "es" ? "ESPECIALIDAD" : "SPECJALNOŚĆ",
+      title: lang === "es" ? "Paella de Marisco Tradicional" : "Tradycyjna Paella de Marisco",
+      desc: lang === "es" 
+        ? "Nuestra obra maestra marinera. Arroz bomba infusionado con un caldo concentrado de roca, coronado con langostinos, calamares y mejillones frescos seleccionados diariamente."
+        : "Nasze arcydzieło prosto z morza. Ryż bomba nasączony esencjonalnym bulionem z owoców morza, podawany z krewetkami tygrysimi, kalmarami i świeżymi małżami.",
+      img: "/paella marisco 2.jpg"
+    },
+    {
+      id: "dish_2",
+      tag: lang === "es" ? "TRADICIÓN" : "TRADYCJA",
+      title: lang === "es" ? "Paella de Conejo y Romero" : "Paella z Królikiem i Rozmarynem",
+      desc: lang === "es"
+        ? "La esencia del interior mediterráneo. Arroz meloso cocinado lentamente con tierno conejo de campo, judías planas tradicionales y un toque ahumado de romero silvestre fresco."
+        : "Esencja śródziemnomorskiego wnętrza kraju. Wolno gotowany, aromatyczny ryż z delikatnym królikiem, tradycyjną płaską fasolą i wędzonym akcentem świeżego dzikiego rozmarynu.",
+      img: "/paella de conejo.jpg"
+    },
+    {
+      id: "dish_3",
+      tag: lang === "es" ? "LEGADO" : "DZIEDZICTWO",
+      title: lang === "es" ? "Jamón Ibérico de Bellota" : "Jamón Ibérico de Bellota",
+      desc: lang === "es"
+        ? "El mayor tesoro de la gastronomía española. Finas lonchas de jamón ibérico de bellota cortadas a mano al instante, con un veteado perfecto que se funde delicadamente en el paladar."
+        : "Największy skarb hiszpańskiej gastronomii. Cienkie, ręcznie krojone plastry dojrzewającej szynki iberyjskiej z żołędziowego wypasu, o doskonałym marmurkowaniu rozpływającym się w ustach.",
+      img: "/plato de jamon.jpg"
+    },
+    {
+      id: "dish_4",
+      tag: lang === "es" ? "PLACER" : "SŁODKA CHWILA",
+      title: lang === "es" ? "Torrija Caramelizada" : "Karmelizowana Torrija z Lodami",
+      desc: lang === "es"
+        ? "La dulzura de la infancia elevada al arte. Brioche tierno infusionado en leche de vainilla, canela y cítricos, caramelizado a la llama y servido con helado artesanal de leche merengada."
+        : "Słodycz dzieciństwa podniesiona do rangi sztuki. Delikatna chałka maślana nasączona mlekiem z wanilią, cynamonem i cytrusami, skarmelizowana ogniem i podawana z rzemieślniczymi lodami.",
+      img: "/postre.jpg"
+    },
+    {
+      id: "dish_5",
+      tag: lang === "es" ? "SABOR" : "DOJRZAŁY SMAK",
+      title: lang === "es" ? "Paella del Señorito" : "Paella del Señorito",
+      desc: lang === "es"
+        ? "El placer de comer sin pausas. Arroz con todo el marisco completamente pelado e integrado, cocinado a fuego vivo con un sofrito denso de sepia, azafrán y ñoras."
+        : "Przyjemność jedzenia bez barier. Aromatyczny ryż z całkowicie obranymi owocami morza, gotowany na dużym ogniu z gęstym sofrito z mątwy, szafranu i suszonych papryczek ñoras.",
+      img: "/paella de marisco 2.jpg"
+    },
+    {
+      id: "dish_6",
+      tag: lang === "es" ? "BOCADO" : "PRZEKĄSKA",
+      title: lang === "es" ? "Surtido de Empanadillas" : "Zestaw Chrupiących Empanadillas",
+      desc: lang === "es"
+        ? "El aperitivo perfecto para compartir. Empanadillas artesanales crujientes rellenas de nuestros guisos caseros más queridos, horneadas al punto exacto de dorado y sazón."
+        : "Idealna przystawka do dzielenia się. Chrupiące, rzemieślnicze pierożki nadziewane naszymi ulubionymi domowymi potrawami, pieczone na złocisty kolor.",
+      img: "/bandeja de empanadas.jpg"
+    },
+    {
+      id: "dish_7",
+      tag: lang === "es" ? "CALIDEZ" : "DOMOWE CIEPŁO",
+      title: lang === "es" ? "Empanadas Caseras de la Abuela" : "Domowe Empanadas Babci",
+      desc: lang === "es"
+        ? "Receta secreta transmitida de generación en generación. Masa tierna y esponjosa rellena de un sofrito casero de atún, huevo cocido y pimientos asados al horno de leña."
+        : "Sekretny przepis przekazywany z pokolenia na pokolenie. Puszyste i delikatne ciasto wypełnione domowym sofrito z tuńczyka, gotowanego jajka i papryki pieczonej w piecu opalany drewnem.",
+      img: "/empanadas.jpg"
+    },
+    {
+      id: "dish_8",
+      tag: lang === "es" ? "RECORRIDO" : "KLASYKA",
+      title: lang === "es" ? "Tabla de Quesos y Embutidos" : "Deska Serów i Wędlin",
+      desc: lang === "es"
+        ? "Un recorrido por el mapa quesero y de charcutería artesanal. Selección de quesos curados de oveja y cabra, acompañados de embutidos tradicionales curados al aire de la sierra."
+        : "Podróż po mapie hiszpańskich serów i wędlin rzemieślniczych. Wybór dojrzałych serów owczych i kozich w towarzystwie tradycyjnych wędlin dojrzewających na górskim powietrzu.",
+      img: "/bandeja de surtido.jpg"
+    },
+    {
+      id: "dish_9",
+      tag: lang === "es" ? "FRESCURA" : "ORZEŹWIENIE",
+      title: lang === "es" ? "Mojito de Autor" : "Autorskie Mojito",
+      desc: lang === "es"
+        ? "Frescura botánica en su máxima expresión. Hierbabuena fresca seleccionada, ron añejo macerado con cítricos y agua con gas premium para un trago largo, vibrante y refrescante."
+        : "Botaniczna świeżość w najlepszym wydaniu. Wyselekcjonowana świeża mięta, starzony rum macerowany z cytrusami i wysokiej jakości woda gazowana dla żywego, orzeźwiającego smaku.",
+      img: "/Mohito.jpg"
+    }
+  ];
+
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setMenuIndex((prev) => (prev + 3) % dishes.length);
+    }, 15000);
+    return () => clearInterval(timer);
+  }, [dishes.length]);
 
   if (showAdmin) {
     return (
@@ -500,40 +591,80 @@ export default function App() {
 
       {/* Menu / Experience */}
       <section className="py-20 sm:py-32 md:py-40 bg-dark/50 px-6 border-y border-border" id="menu">
-        <div className="max-w-7xl mx-auto space-y-24">
+        <div className="max-w-7xl mx-auto space-y-20">
           <div className="text-center space-y-4">
             <h2 className="text-3xl sm:text-5xl md:text-8xl font-serif font-light tracking-tight">{t.expTitle}</h2>
             <div className="w-24 h-px bg-gold mx-auto mt-8" />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            {[
-              { id: t.expC1_tag, title: t.expC1_title, desc: t.expC1_desc, img: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=800" },
-              { id: t.expC2_tag, title: t.expC2_title, desc: t.expC2_desc, img: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&q=80&w=800" },
-              { id: t.expC3_tag, title: t.expC3_title, desc: t.expC3_desc, img: "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?auto=format&fit=crop&q=80&w=800" }
-            ].map((item, idx) => (
-              <motion.div 
-                key={item.id} 
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.2 }}
-                className="group"
-              >
-                <div className="relative aspect-[4/5] overflow-hidden mb-8 border border-border group-hover:border-gold transition-colors duration-500">
-                  <img 
-                    src={item.img} 
-                    alt={item.title} 
-                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-                    referrerPolicy="no-referrer"
+          <div className="relative max-w-6xl mx-auto px-2 sm:px-12">
+            {/* Arrows */}
+            <button
+              onClick={() => setMenuIndex((prev) => (prev - 3 + dishes.length) % dishes.length)}
+              className="absolute -left-2 sm:left-0 md:-left-12 top-[180px] sm:top-[220px] md:top-[240px] -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full border border-border bg-dark/95 backdrop-blur-md flex items-center justify-center text-stone-400 hover:text-gold hover:border-gold transition-all duration-300 shadow-xl cursor-pointer"
+              aria-label="Previous dish"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setMenuIndex((prev) => (prev + 3) % dishes.length)}
+              className="absolute -right-2 sm:right-0 md:-right-12 top-[180px] sm:top-[220px] md:top-[240px] -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full border border-border bg-dark/95 backdrop-blur-md flex items-center justify-center text-stone-400 hover:text-gold hover:border-gold transition-all duration-300 shadow-xl cursor-pointer"
+              aria-label="Next dish"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+
+            {/* Grid Container */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+              {[0, 1, 2].map((offset) => {
+                const itemIdx = (menuIndex + offset) % dishes.length;
+                const item = dishes[itemIdx];
+                return (
+                  <motion.div 
+                    key={`${item.id}-${offset}`} 
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    className={cn(
+                      "group flex flex-col justify-between h-full",
+                      offset === 0 ? "flex" : offset === 1 ? "hidden md:flex" : "hidden lg:flex"
+                    )}
+                  >
+                    <div>
+                      <div className="relative aspect-[4/5] overflow-hidden mb-6 border border-border group-hover:border-gold transition-colors duration-500 bg-black/40">
+                        <img 
+                          src={item.img} 
+                          alt={item.title} 
+                          className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-0 bg-dark/20 group-hover:bg-transparent transition-colors" />
+                      </div>
+                      <span className="text-[9px] uppercase tracking-[0.4em] text-gold mb-3 block">{item.tag}</span>
+                      <h4 className="text-2xl sm:text-3xl font-serif font-light mb-4 tracking-tight min-h-[2.5rem] flex items-center">{item.title}</h4>
+                    </div>
+                    <p className="text-stone-500 font-light text-sm leading-relaxed tracking-wide italic min-h-[6.5rem]">{item.desc}</p>
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {/* Indicator Dots */}
+            <div className="flex justify-center gap-2 mt-12">
+              {Array.from({ length: Math.ceil(dishes.length / 3) }).map((_, pageIdx) => {
+                const isActive = Math.floor(menuIndex / 3) === pageIdx;
+                return (
+                  <button
+                    key={pageIdx}
+                    onClick={() => setMenuIndex(pageIdx * 3)}
+                    className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
+                      isActive ? "bg-gold w-4" : "bg-white/20 hover:bg-white/40"
+                    }`}
+                    aria-label={`Go to page ${pageIdx + 1}`}
                   />
-                  <div className="absolute inset-0 bg-dark/20 group-hover:bg-transparent transition-colors" />
-                </div>
-                <span className="text-[9px] uppercase tracking-[0.4em] text-gold mb-3 block">{item.id}</span>
-                <h4 className="text-3xl font-serif font-light mb-4 tracking-tight">{item.title}</h4>
-                <p className="text-stone-500 font-light text-sm leading-relaxed tracking-wide italic">{item.desc}</p>
-              </motion.div>
-            ))}
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
