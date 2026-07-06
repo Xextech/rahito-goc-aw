@@ -43,21 +43,22 @@ service cloud.firestore {
       allow get: if true; // Allow checking reservation status by ID
       
       // Allow the restaurant owner / managers to list bookings
-      allow list: if true;
+      allow list: if request.auth != null && request.auth.token.email == "bove.abt@gmail.com";
 
       allow update: if (
         // Self-cancellation by customer
         (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
-        && incoming().status == 'cancelled'
-        && incoming().updatedAt == request.time) || 
+         && incoming().status == 'cancelled'
+         && incoming().updatedAt == request.time) || 
         // Authorized action internally (by owner via Google Auth or passphrase)
         (incoming().updatedAt == request.time
-        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'tableId', 'tableName']))
+         && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'tableId', 'tableName']))
       );
     }
 
     match /settings/{settingId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == "bove.abt@gmail.com";
     }
   }
 }

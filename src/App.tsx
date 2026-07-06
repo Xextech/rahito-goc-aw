@@ -6,6 +6,7 @@ import Reviews from "./components/Reviews";
 import AdminPortal from "./components/AdminPortal";
 import { useLanguage } from "./context/LanguageContext";
 import { cn } from "./lib/utils";
+import { PrivacyPolicyModal, TermsOfServiceModal } from "./components/LegalModals";
 
 // Beautiful monochrome Spanish Bull head SVG LogoIcon
 export function LogoIcon({ className = "w-8 h-8" }: { className?: string }) {
@@ -49,6 +50,8 @@ export default function App() {
   const { lang, setLang, t } = useLanguage();
   const [showAdmin, setShowAdmin] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showTermsOfService, setShowTermsOfService] = useState(false);
 
   // States and data for the cinematic 'image-video' interior slideshow
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -678,7 +681,10 @@ export default function App() {
             </div>
           </div>
           <div className="w-full">
-            <ReservationForm />
+            <ReservationForm 
+              onOpenPrivacyPolicy={() => setShowPrivacyPolicy(true)} 
+              onOpenTermsOfService={() => setShowTermsOfService(true)} 
+            />
           </div>
         </div>
       </section>
@@ -721,14 +727,17 @@ export default function App() {
         <div className="max-w-7xl mx-auto pt-24 mt-24 border-t border-border flex flex-col md:flex-row justify-between text-stone-700 text-[9px] uppercase tracking-[0.5em] gap-6">
            <p>{t.footerRights}</p>
            <div className="flex gap-12 mt-6 md:mt-0">
-             <a href="#" className="hover:text-gold transition-colors">{t.footerPrivacy}</a>
-             <a href="#" className="hover:text-gold transition-colors">{t.footerTerms}</a>
-             <button onClick={() => setShowAdmin(true)} className="hover:text-gold transition-colors flex items-center gap-1">
+             <button onClick={() => setShowPrivacyPolicy(true)} className="hover:text-gold transition-colors cursor-pointer">{t.footerPrivacy}</button>
+             <button onClick={() => setShowTermsOfService(true)} className="hover:text-gold transition-colors cursor-pointer">{t.footerTerms}</button>
+             <button onClick={() => setShowAdmin(true)} className="hover:text-gold transition-colors flex items-center gap-1 cursor-pointer">
                <Shield size={10} /> {lang === "es" ? "Acceso Propietario" : "Logowanie Właściciela"}
              </button>
            </div>
         </div>
       </footer>
+
+      <PrivacyPolicyModal isOpen={showPrivacyPolicy} onClose={() => setShowPrivacyPolicy(false)} lang={lang} />
+      <TermsOfServiceModal isOpen={showTermsOfService} onClose={() => setShowTermsOfService(false)} lang={lang} />
     </div>
   );
 }
