@@ -4,6 +4,7 @@ import { es, pl } from "date-fns/locale";
 import { collection, addDoc, serverTimestamp, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { cn } from "../lib/utils";
+import { computeDisabledSlots } from "../lib/reservationUtils";
 import { motion, AnimatePresence } from "motion/react";
 import { Calendar as CalendarIcon, Users, Clock, CheckCircle2, AlertCircle, Utensils } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
@@ -176,20 +177,27 @@ export default function ReservationForm() {
                   {(lang === "es" ? ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"] : ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nie"]).map(d => (
                     <div key={d} className="text-[9px] text-stone-600 uppercase tracking-tighter text-center py-2">{d}</div>
                   ))}
-                  {availableDates.map((d) => (
-                    <button
-                      key={d.toISOString()}
-                      onClick={() => setDate(d)}
-                      className={cn(
-                        "aspect-square flex items-center justify-center text-sm border transition-all duration-300 relative",
-                        isSameDay(date, d)
-                          ? "bg-gold text-dark border-gold z-10 font-bold"
-                          : "bg-dark text-stone-400 border-border hover:border-gold"
-                      )}
-                    >
-                      {format(d, "d")}
-                    </button>
-                  ))}
+                  {availableDates.map((d) => {
+                    const isMondayDate = d.getDay() === 1; // 1 = Monday
+                    const selected = isSameDay(date, d);
+                    return (
+                      <button
+                        key={d.toISOString()}
+                        onClick={() => !isMondayDate && setDate(d)}
+                        disabled={isMondayDate}
+                        className={cn(
+                          "aspect-square flex items-center justify-center text-sm border transition-all duration-300 relative",
+                          selected
+                            ? "bg-gold text-dark border-gold z-10 font-bold"
+                            : isMondayDate
+                              ? "bg-stone-900 text-stone-600 border-border line-through opacity-70 cursor-not-allowed"
+                              : "bg-dark text-stone-400 border-border hover:border-gold"
+                        )}
+                      >
+                        {format(d, "d")}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -208,29 +216,10 @@ export default function ReservationForm() {
                     // occupancy for selected date
                     const dateStr = format(date, "yyyy-MM-dd");
                     const dayOccupancy = occupancy[dateStr] || {};
+                    const disabledSlots = computeDisabledSlots(dayOccupancy, TIME_SLOTS);
 
-                    // determine disabled slots including follow-up blocking
-                    const disabledSlots = new Set<string>();
-                    TIME_SLOTS.forEach((slot, idx) => {
-                      const info = dayOccupancy[slot];
-                      const total = info?.total ?? 0;
-                      const hasLarge = info?.hasLarge ?? false;
-                      const isFull = hasLarge || total >= SLOT_CAPACITY;
-                      if (isFull) {
-                        disabledSlots.add(slot);
-                        // block next 2 hours -> next 4 half-hour slots
-                        for (let k = 1; k <= 4; k++) {
-                          const next = TIME_SLOTS[idx + k];
-                          if (next) disabledSlots.add(next);
-                        }
-                      }
-                    });
-
-                    return TIME_SLOTS.map((t_slot, idx) => {
+                    return TIME_SLOTS.map((t_slot) => {
                       const info = dayOccupancy[t_slot];
-                      const total = info?.total ?? 0;
-                      const hasLarge = info?.hasLarge ?? false;
-                      const isFull = hasLarge || total >= SLOT_CAPACITY;
                       const disabled = disabledSlots.has(t_slot);
 
                       return (
@@ -239,17 +228,20 @@ export default function ReservationForm() {
                           onClick={() => setTime(t_slot)}
                           disabled={disabled}
                           className={cn(
-                            "py-3 text-[11px] border transition-all uppercase tracking-widest relative overflow-hidden",
+                            "relative py-3 text-[11px] border transition-all uppercase tracking-widest overflow-hidden",
                             disabled
-                              ? "bg-stone-800 text-stone-600 border-border pointer-events-none opacity-60"
+                              ? "bg-stone-800 text-stone-600 border-border pointer-events-none opacity-80"
                               : time === t_slot
                                 ? "bg-gold text-dark border-gold font-bold"
                                 : "bg-dark text-stone-500 border-border hover:border-gold hover:text-stone-300"
                           )}
                         >
-                          {t_slot}
+                          <span className="relative z-10">{t_slot}</span>
                           {disabled && (
-                            <span aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0 4px, transparent 4px 8px)' }} />
+                            <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none">
+                              <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(135deg, rgba(0,0,0,0.45) 0 50%, rgba(255,255,255,0.02) 50%)' }} />
+                              <span className="z-10 text-xs uppercase tracking-widest text-white font-bold drop-shadow-lg">COMPLETO</span>
+                            </div>
                           )}
                         </button>
                       );

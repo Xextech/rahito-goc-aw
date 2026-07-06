@@ -159,12 +159,12 @@ export default function App() {
     },
     {
       id: "dish_2",
-      tag: lang === "es" ? "TRADICIÓN" : "TRADYCJA",
-      title: lang === "es" ? "Paella de Conejo y Romero" : "Paella z Królikiem i Rozmarynem",
+      tag: lang === "es" ? "RECORRIDO" : "KLASYKA",
+      title: lang === "es" ? "Tabla de Quesos y Embutidos" : "Deska Serów i Wędlin",
       desc: lang === "es"
-        ? "La esencia del interior mediterráneo. Arroz meloso cocinado lentamente con tierno conejo de campo, judías planas tradicionales y un toque ahumado de romero silvestre fresco."
-        : "Esencja śródziemnomorskiego wnętrza kraju. Wolno gotowany, aromatyczny ryż z delikatnym królikiem, tradycyjną płaską fasolą i wędzonym akcentem świeżego dzikiego rozmarynu.",
-      img: "/paella de conejo.jpg"
+        ? "Un recorrido por el mapa quesero y de charcutería artesanal. Selección de quesos curados de oveja y cabra, acompañados de embutidos tradicionales curados al aire de la sierra."
+        : "Podróż po mapie hiszpańskich serów i wędlin rzemieślniczych. Wybór dojrzałych serów owczych i kozich w towarzystwie tradycyjnych wędlin dojrzewających na górskim powietrzu.",
+      img: "/bandeja-de-surtido.v2.jpg"
     },
     {
       id: "dish_3",
@@ -213,12 +213,12 @@ export default function App() {
     },
     {
       id: "dish_8",
-      tag: lang === "es" ? "RECORRIDO" : "KLASYKA",
-      title: lang === "es" ? "Tabla de Quesos y Embutidos" : "Deska Serów i Wędlin",
+      tag: lang === "es" ? "TRADICIÓN" : "TRADYCJA",
+      title: lang === "es" ? "Paella de Conejo y Romero" : "Paella z Królikiem i Rozmarynem",
       desc: lang === "es"
-        ? "Un recorrido por el mapa quesero y de charcutería artesanal. Selección de quesos curados de oveja y cabra, acompañados de embutidos tradicionales curados al aire de la sierra."
-        : "Podróż po mapie hiszpańskich serów i wędlin rzemieślniczych. Wybór dojrzałych serów owczych i kozich w towarzystwie tradycyjnych wędlin dojrzewających na górskim powietrzu.",
-      img: "/bandeja de surtido.jpg"
+        ? "La esencia del interior mediterráneo. Arroz meloso cocinado lentamente con tierno conejo de campo, judías planas tradicionales y un toque ahumado de romero silvestre fresco."
+        : "Esencja śródziemnomorskiego wnętrza kraju. Wolno gotowany, aromatyczny ryż z delikatnym królikiem, tradycyjną płaską fasolą i wędzonym akcentem świeżego dzikiego rozmarynu.",
+      img: "/paella-de-conejo.v2.jpg"
     },
     {
       id: "dish_9",
