@@ -59,6 +59,9 @@ export default function ReservationForm() {
         if (guests >= FULL_SINGLE_THRESHOLD) map[date][time].hasLarge = true;
       });
       setOccupancy(map);
+    }, (err) => {
+      console.warn('reservations listener error', err);
+      setOccupancy({});
     });
     return () => unsub();
   }, []);
