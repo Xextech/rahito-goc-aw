@@ -621,7 +621,20 @@ export default function App() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
               {[0, 1, 2].map((offset) => {
                 const itemIdx = (menuIndex + offset) % dishes.length;
-                const item = dishes[itemIdx];
+                let item = dishes[itemIdx];
+                // swap visual positions for the cuadricula: if this slot would show paella de conejo or bandeja de surtido,
+                // show the other instead so they appear swapped in the 3-grid view only.
+                try {
+                  if (item?.id === 'dish_2') {
+                    const alt = dishes.find(d => d.id === 'dish_8');
+                    if (alt) item = alt;
+                  } else if (item?.id === 'dish_8') {
+                    const alt = dishes.find(d => d.id === 'dish_2');
+                    if (alt) item = alt;
+                  }
+                } catch (e) {
+                  // noop
+                }
                 return (
                   <motion.div 
                     key={`${item.id}-${offset}`} 
