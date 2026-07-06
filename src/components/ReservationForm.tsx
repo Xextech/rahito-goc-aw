@@ -13,12 +13,7 @@ const TIME_SLOTS = [
   "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"
 ];
 
-interface ReservationFormProps {
-  onOpenPrivacyPolicy?: () => void;
-  onOpenTermsOfService?: () => void;
-}
-
-export default function ReservationForm({ onOpenPrivacyPolicy, onOpenTermsOfService }: ReservationFormProps) {
+export default function ReservationForm() {
   const { lang, t } = useLanguage();
   const [step, setStep] = useState(1);
   const [date, setDate] = useState<Date>(addDays(startOfToday(), 1));
@@ -29,7 +24,6 @@ export default function ReservationForm({ onOpenPrivacyPolicy, onOpenTermsOfServ
     email: "",
     phone: "",
   });
-  const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookingRef, setBookingRef] = useState<string | null>(null);
@@ -39,10 +33,6 @@ export default function ReservationForm({ onOpenPrivacyPolicy, onOpenTermsOfServ
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!consent) {
-      setError(t.gdprConsentError);
-      return;
-    }
     setLoading(true);
     setError(null);
 
@@ -233,9 +223,8 @@ export default function ReservationForm({ onOpenPrivacyPolicy, onOpenTermsOfServ
 
               <div className="space-y-8">
                 <div className="space-y-2 group">
-                  <label htmlFor="name-input" className="text-[10px] uppercase tracking-widest text-stone-600 ml-1 group-focus-within:text-gold transition-colors">{t.fieldFullName}</label>
+                  <label className="text-[10px] uppercase tracking-widest text-stone-600 ml-1 group-focus-within:text-gold transition-colors">{t.fieldFullName}</label>
                   <input
-                    id="name-input"
                     required
                     type="text"
                     value={formData.name}
@@ -246,9 +235,8 @@ export default function ReservationForm({ onOpenPrivacyPolicy, onOpenTermsOfServ
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
                   <div className="space-y-2 group">
-                    <label htmlFor="email-input" className="text-[10px] uppercase tracking-widest text-stone-600 ml-1 group-focus-within:text-gold transition-colors">{t.fieldEmail}</label>
+                    <label className="text-[10px] uppercase tracking-widest text-stone-600 ml-1 group-focus-within:text-gold transition-colors">{t.fieldEmail}</label>
                     <input
-                      id="email-input"
                       required
                       type="email"
                       value={formData.email}
@@ -257,9 +245,8 @@ export default function ReservationForm({ onOpenPrivacyPolicy, onOpenTermsOfServ
                     />
                   </div>
                   <div className="space-y-2 group">
-                    <label htmlFor="phone-input" className="text-[10px] uppercase tracking-widest text-stone-600 ml-1 group-focus-within:text-gold transition-colors">{t.fieldPhone}</label>
+                    <label className="text-[10px] uppercase tracking-widest text-stone-600 ml-1 group-focus-within:text-gold transition-colors">{t.fieldPhone}</label>
                     <input
-                      id="phone-input"
                       required
                       type="tel"
                       value={formData.phone}
@@ -268,59 +255,6 @@ export default function ReservationForm({ onOpenPrivacyPolicy, onOpenTermsOfServ
                     />
                   </div>
                 </div>
-              </div>
-
-              <div className="flex items-start gap-3 text-xs text-stone-500">
-                <input
-                  id="gdpr-consent"
-                  type="checkbox"
-                  checked={consent}
-                  onChange={(e) => setConsent(e.target.checked)}
-                  className="mt-1 accent-gold cursor-pointer"
-                />
-                <label htmlFor="gdpr-consent" className="cursor-pointer select-none">
-                  {lang === "es" ? (
-                    <span>
-                      Acepto los{" "}
-                      <button
-                        type="button"
-                        onClick={onOpenTermsOfService}
-                        className="text-gold hover:underline focus:outline-none cursor-pointer"
-                      >
-                        términos de servicio
-                      </button>{" "}
-                      y la{" "}
-                      <button
-                        type="button"
-                        onClick={onOpenPrivacyPolicy}
-                        className="text-gold hover:underline focus:outline-none cursor-pointer"
-                      >
-                        política de privacidad
-                      </button>{" "}
-                      de acuerdo con el RGPD/RODO.
-                    </span>
-                  ) : (
-                    <span>
-                      Akceptuję{" "}
-                      <button
-                        type="button"
-                        onClick={onOpenTermsOfService}
-                        className="text-gold hover:underline focus:outline-none cursor-pointer"
-                      >
-                        regulamin usługi
-                      </button>{" "}
-                      oraz{" "}
-                      <button
-                        type="button"
-                        onClick={onOpenPrivacyPolicy}
-                        className="text-gold hover:underline focus:outline-none cursor-pointer"
-                      >
-                        politykę prywatności
-                      </button>{" "}
-                      zgodnie z RODO.
-                    </span>
-                  )}
-                </label>
               </div>
 
               {error && (
@@ -393,7 +327,6 @@ export default function ReservationForm({ onOpenPrivacyPolicy, onOpenTermsOfServ
                   setStep(1);
                   setFormData({ name: "", email: "", phone: "" });
                   setTime("");
-                  setConsent(false);
                 }}
                 className="text-[10px] text-stone-600 tracking-[0.4em] uppercase hover:text-gold transition-colors border-b border-transparent hover:border-gold pb-1"
               >

@@ -4,15 +4,15 @@ import { MapPin, Phone, Instagram, Facebook, Utensils, Award, Star, ArrowDown, G
 import ReservationForm from "./components/ReservationForm";
 import Reviews from "./components/Reviews";
 import AdminPortal from "./components/AdminPortal";
+import { PrivacyPolicyModal, TermsOfServiceModal } from "./components/LegalModals";
 import { useLanguage } from "./context/LanguageContext";
 import { cn } from "./lib/utils";
-import { PrivacyPolicyModal, TermsOfServiceModal } from "./components/LegalModals";
 
 // Beautiful monochrome Spanish Bull head SVG LogoIcon
 export function LogoIcon({ className = "w-8 h-8" }: { className?: string }) {
   return (
     <img
-      src="/logo-dorado.png"
+      src="/logo_dorado.png"
       alt="Rahito Logo"
       className={cn("w-full h-full object-contain", className)}
       referrerPolicy="no-referrer"
@@ -48,10 +48,16 @@ export default function App() {
   const heroScale = useTransform(scrollYProgress, [0, 0.2], [1, 1.05]);
   
   const { lang, setLang, t } = useLanguage();
-  const [showAdmin, setShowAdmin] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("admin") === "true" || window.location.hash === "#admin";
+    }
+    return false;
+  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
-  const [showTermsOfService, setShowTermsOfService] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
   // States and data for the cinematic 'image-video' interior slideshow
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -681,10 +687,7 @@ export default function App() {
             </div>
           </div>
           <div className="w-full">
-            <ReservationForm 
-              onOpenPrivacyPolicy={() => setShowPrivacyPolicy(true)} 
-              onOpenTermsOfService={() => setShowTermsOfService(true)} 
-            />
+            <ReservationForm />
           </div>
         </div>
       </section>
@@ -727,17 +730,39 @@ export default function App() {
         <div className="max-w-7xl mx-auto pt-24 mt-24 border-t border-border flex flex-col md:flex-row justify-between text-stone-700 text-[9px] uppercase tracking-[0.5em] gap-6">
            <p>{t.footerRights}</p>
            <div className="flex gap-12 mt-6 md:mt-0">
-             <button onClick={() => setShowPrivacyPolicy(true)} className="hover:text-gold transition-colors cursor-pointer">{t.footerPrivacy}</button>
-             <button onClick={() => setShowTermsOfService(true)} className="hover:text-gold transition-colors cursor-pointer">{t.footerTerms}</button>
-             <button onClick={() => setShowAdmin(true)} className="hover:text-gold transition-colors flex items-center gap-1 cursor-pointer">
+             <button 
+               onClick={() => setShowPrivacy(true)} 
+               className="hover:text-gold transition-colors cursor-pointer"
+             >
+               {t.footerPrivacy}
+             </button>
+             <button 
+               onClick={() => setShowTerms(true)} 
+               className="hover:text-gold transition-colors cursor-pointer"
+             >
+               {t.footerTerms}
+             </button>
+             <button 
+               onClick={() => setShowAdmin(true)} 
+               className="hover:text-gold transition-colors flex items-center gap-1 cursor-pointer"
+             >
                <Shield size={10} /> {lang === "es" ? "Acceso Propietario" : "Logowanie Właściciela"}
              </button>
            </div>
         </div>
       </footer>
 
-      <PrivacyPolicyModal isOpen={showPrivacyPolicy} onClose={() => setShowPrivacyPolicy(false)} lang={lang} />
-      <TermsOfServiceModal isOpen={showTermsOfService} onClose={() => setShowTermsOfService(false)} lang={lang} />
+      {/* Legal Modals */}
+      <PrivacyPolicyModal 
+        isOpen={showPrivacy} 
+        onClose={() => setShowPrivacy(false)} 
+        lang={lang} 
+      />
+      <TermsOfServiceModal 
+        isOpen={showTerms} 
+        onClose={() => setShowTerms(false)} 
+        lang={lang} 
+      />
     </div>
   );
 }
