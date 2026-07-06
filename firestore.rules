@@ -52,7 +52,7 @@ service cloud.firestore {
          && incoming().updatedAt == request.time) || 
         // Authorized action internally (by owner via Google Auth or passphrase)
         (incoming().updatedAt == request.time
-         && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'tableId', 'tableName']))
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'tableId', 'tableName']))
       );
     }
 
