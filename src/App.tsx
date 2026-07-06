@@ -164,7 +164,7 @@ export default function App() {
       desc: lang === "es"
         ? "Un recorrido por el mapa quesero y de charcutería artesanal. Selección de quesos curados de oveja y cabra, acompañados de embutidos tradicionales curados al aire de la sierra."
         : "Podróż po mapie hiszpańskich serów i wędlin rzemieślniczych. Wybór dojrzałych serów owczych i kozich w towarzystwie tradycyjnych wędlin dojrzewających na górskim powietrzu.",
-      img: "/bandeja de surtido.jpg"
+      img: "/bandeja-de-surtido.v2.jpg"
     },
     {
       id: "dish_3",
@@ -218,7 +218,7 @@ export default function App() {
       desc: lang === "es"
         ? "La esencia del interior mediterráneo. Arroz meloso cocinado lentamente con tierno conejo de campo, judías planas tradicionales y un toque ahumado de romero silvestre fresco."
         : "Esencja śródziemnomorskiego wnętrza kraju. Wolno gotowany, aromatyczny ryż z delikatnym królikiem, tradycyjną płaską fasolą i wędzonym akcentem świeżego dzikiego rozmarynu.",
-      img: "/paella de conejo.jpg"
+      img: "/paella-de-conejo.v2.jpg"
     },
     {
       id: "dish_9",
