@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { collection, query, onSnapshot, doc, updateDoc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, onSnapshot, doc, updateDoc, setDoc, getDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useLanguage } from "../context/LanguageContext";
 import { Table as TableIcon, Users, Edit, Maximize2, Trash2, Plus, Check, MapPin, Briefcase, Grid, AlertCircle, HelpCircle } from "lucide-react";
 import { format } from "date-fns";
 import { es, pl } from "date-fns/locale";
 import { cn } from "../lib/utils";
+import { computeDayTableSuggestion, TableSuggestion } from "../lib/reservationUtils";
 
 const SLOT_CAPACITY = 20;
 const FULL_SINGLE_THRESHOLD = 10;
@@ -58,6 +59,8 @@ export default function TableFlow({
   const [selectedResToAssign, setSelectedResToAssign] = useState<Reservation | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [dayLayoutStatus, setDayLayoutStatus] = useState<'loading' | 'saved' | 'none'>('loading');
+  const [suggestion, setSuggestion] = useState<TableSuggestion | null>(null);
   
   // Drag and drop state
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -72,27 +75,67 @@ export default function TableFlow({
     if (h !== 22) TIME_SLOTS.push(`${hh}:30`);
   }
 
-  // Fetch or setup Table layout in Firestore
+  // Load per-day table layout from Firestore; fallback to global layout
   useEffect(() => {
-    const layoutRef = doc(db, "settings", "restaurant_layout");
-    
-    const unsubscribe = onSnapshot(layoutRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
+    let cancelled = false;
+
+    const loadLayout = async () => {
+      setDayLayoutStatus('loading');
+      setSelectedTable(null);
+      setSelectedResToAssign(null);
+      setSuggestion(null);
+
+      // 1. Try day-specific layout
+      const dayRef = doc(db, "day_layouts", selectedDate);
+      const daySnap = await getDoc(dayRef);
+      if (cancelled) return;
+
+      if (daySnap.exists()) {
+        const data = daySnap.data();
+        if (data && Array.isArray(data.tables)) {
+          setTables(data.tables);
+          setDayLayoutStatus('saved');
+          return;
+        }
+      }
+
+      // 2. Fallback: global layout
+      const globalRef = doc(db, "settings", "restaurant_layout");
+      const globalSnap = await getDoc(globalRef);
+      if (cancelled) return;
+
+      if (globalSnap.exists()) {
+        const data = globalSnap.data();
         if (data && Array.isArray(data.tables)) {
           setTables(data.tables);
         } else {
           setTables(DEFAULT_TABLES);
         }
       } else {
-        // Seed default tables in Firestore
-        setDoc(layoutRef, { tables: DEFAULT_TABLES });
         setTables(DEFAULT_TABLES);
       }
-    });
 
-    return () => unsubscribe();
-  }, []);
+      setDayLayoutStatus('none');
+    };
+
+    loadLayout();
+    return () => { cancelled = true; };
+  }, [selectedDate]);
+
+  // When day has no saved layout, compute a suggestion from confirmed reservations
+  useEffect(() => {
+    if (dayLayoutStatus !== 'none') {
+      setSuggestion(null);
+      return;
+    }
+
+    const dateRes = reservations.filter(r => r.date === selectedDate);
+    const sugg = computeDayTableSuggestion(
+      dateRes.map(r => ({ guests: r.guests, time: r.time, status: r.status })),
+      DEFAULT_TABLES
+    );
+    setSuggestion(sugg);
+  }, [reservations, selectedDate, dayLayoutStatus]);
 
   // Filter reservations for the active date and active slot
   const currentReservations = reservations.filter(
@@ -147,13 +190,33 @@ export default function TableFlow({
     }
   };
 
-  // Modify restaurant table configuration (create, edit, delete tables)
-  const saveTableConfig = async (newTables: TableDef[]) => {
+  // Save per-day table configuration to Firestore
+  const saveDayLayout = async (newTables: TableDef[]) => {
     try {
-      const layoutRef = doc(db, "settings", "restaurant_layout");
-      await setDoc(layoutRef, { tables: newTables });
+      const dayRef = doc(db, "day_layouts", selectedDate);
+      await setDoc(dayRef, { tables: newTables });
+      setDayLayoutStatus('saved');
+      setSuggestion(null);
     } catch (err) {
       console.error("Failed to save layout:", err);
+    }
+  };
+
+  // Accept auto-suggestion for the current day
+  const handleApplySuggestion = async () => {
+    if (!suggestion) return;
+    setTables(suggestion.tables);
+    await saveDayLayout(suggestion.tables);
+  };
+
+  // Delete day-specific layout and revert to auto-suggestion
+  const handleResetLayout = async () => {
+    try {
+      const dayRef = doc(db, "day_layouts", selectedDate);
+      await deleteDoc(dayRef);
+      setDayLayoutStatus('none');
+    } catch (err) {
+      console.error("Failed to reset layout:", err);
     }
   };
 
@@ -169,14 +232,14 @@ export default function TableFlow({
     };
     const updated = [...tables, newTable];
     setTables(updated);
-    saveTableConfig(updated);
+    saveDayLayout(updated);
     setSelectedTable(newTable);
   };
 
   const handleDeleteTable = (id: string) => {
     const updated = tables.filter(t => t.id !== id);
     setTables(updated);
-    saveTableConfig(updated);
+    saveDayLayout(updated);
     if (selectedTable?.id === id) setSelectedTable(null);
   };
 
@@ -188,7 +251,7 @@ export default function TableFlow({
       return t;
     });
     setTables(updated);
-    saveTableConfig(updated);
+    saveDayLayout(updated);
     if (selectedTable?.id === id) {
       setSelectedTable({ ...selectedTable, [field]: val });
     }
@@ -221,7 +284,7 @@ export default function TableFlow({
 
   const handleDragEnd = () => {
     if (draggedTableId) {
-      saveTableConfig(tables);
+      saveDayLayout(tables);
       setDraggedTableId(null);
     }
   };
@@ -271,6 +334,55 @@ export default function TableFlow({
           )}
         </div>
       </div>
+
+      {/* Per-day layout suggestion / status banner */}
+      {dayLayoutStatus !== 'loading' && (
+        <div className={cn(
+          "flex flex-wrap items-center justify-between gap-3 px-5 py-3 border",
+          dayLayoutStatus === 'saved'
+            ? "border-emerald-500/20 bg-emerald-500/5"
+            : "border-gold/20 bg-gold/5"
+        )}>
+          <div className="flex items-center gap-2.5 text-xs">
+            {dayLayoutStatus === 'saved' ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                <span className="text-stone-500 font-mono text-[10px]">
+                  {lang === 'es'
+                    ? `Diseño personalizado guardado para este día.`
+                    : `Zapisany układ na ten dzień.`}
+                </span>
+              </>
+            ) : suggestion ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-gold shrink-0 animate-pulse" />
+                <span className="text-stone-500 font-mono text-[10px] leading-relaxed">
+                  {lang === 'es' ? suggestion.description.es : suggestion.description.pl}
+                </span>
+              </>
+            ) : null}
+          </div>
+
+          <div className="flex gap-2 shrink-0">
+            {suggestion && dayLayoutStatus === 'none' && (
+              <button
+                onClick={handleApplySuggestion}
+                className="px-4 py-1.5 bg-gold/10 border border-gold/30 text-gold text-[9px] uppercase tracking-widest font-bold hover:bg-gold hover:text-dark transition-all"
+              >
+                {lang === 'es' ? 'Aplicar Sugerencia' : 'Zastosuj Sugestię'}
+              </button>
+            )}
+            {dayLayoutStatus === 'saved' && (
+              <button
+                onClick={handleResetLayout}
+                className="px-4 py-1.5 border border-stone-700 text-stone-500 text-[9px] uppercase tracking-widest hover:text-rose-500 hover:border-rose-500 transition-all"
+              >
+                {lang === 'es' ? 'Restablecer Auto' : 'Przywróć Auto'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Date & Time Slot Selector */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-stone-900/10 p-5 border border-border">
