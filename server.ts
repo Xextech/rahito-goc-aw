@@ -301,12 +301,28 @@ async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || "3000");
 
+  // Cloud Run sits exactly one reverse-proxy hop in front of this
+  // container and sets X-Forwarded-For. Without telling Express to trust
+  // that one hop, express-rate-limit refuses to trust the header and
+  // throws on every request (ERR_ERL_UNEXPECTED_X_FORWARDED_FOR) instead
+  // of just rate-limiting by the wrong IP — which took the whole site
+  // down in production, including /api/health, so Cloud Run stopped
+  // routing traffic entirely.
+  app.set("trust proxy", 1);
+
   // Security headers. CSP is left to the app's own meta tags / build output
   // since Vite's dev middleware injects inline scripts that a strict CSP
   // here would break; the other helmet defaults (X-Content-Type-Options,
   // X-Frame-Options, etc.) still apply.
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(express.json({ limit: "15kb" }));
+
+  // Health check first and unconditionally, before any middleware (rate
+  // limiter, auth, etc.) that could ever fail — Cloud Run's readiness
+  // probe must never depend on anything else being healthy.
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok" });
+  });
 
   // Rate limiting: protects against scripted abuse (calendar spam-filling,
   // scraping, brute-forcing cancellation links) without needing external
@@ -317,11 +333,6 @@ async function startServer() {
   const adminLoginLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 5, standardHeaders: true, legacyHeaders: false, message: { error: "rate_limited", message: "Demasiados intentos. Inténtelo de nuevo más tarde." } });
   const globalLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false });
   app.use("/api/", globalLimiter);
-
-  // API routes
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
-  });
 
   // Public, PII-free availability for the booking calendar. Personal data
   // (name/email/phone) never leaves the server — only aggregate occupancy
