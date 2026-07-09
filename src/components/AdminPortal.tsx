@@ -19,7 +19,9 @@ interface Reservation {
   guests: number;
   status: "confirmed" | "cancelled" | "pending";
   tableId?: string;
+  tableIds?: string[];
   tableName?: string;
+  type?: string;
   createdAt?: any;
 }
 
@@ -108,7 +110,9 @@ export default function AdminPortal() {
           guests: Number(data.guests),
           status: data.status || "confirmed",
           tableId: data.tableId || "",
+          tableIds: Array.isArray(data.tableIds) ? data.tableIds : [],
           tableName: data.tableName || "",
+          type: data.type || "table",
           createdAt: data.createdAt,
         });
       });
@@ -362,6 +366,11 @@ export default function AdminPortal() {
                               <td className="py-6 px-8 space-y-2">
                                 <h4 className="text-stone-200 font-serif text-base italic flex items-center gap-2">
                                   {res.name}
+                                  {res.type === "event" && (
+                                    <span className="text-[9px] font-sans font-bold uppercase bg-purple-500/10 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded-full">
+                                      {lang === "es" ? "Evento" : "Wydarzenie"}
+                                    </span>
+                                  )}
                                   {res.tableName && (
                                     <span className="text-[9px] font-sans font-normal uppercase bg-gold/10 text-gold border border-gold/20 px-2 py-0.5 rounded-full">
                                       {res.tableName}
@@ -385,7 +394,7 @@ export default function AdminPortal() {
                                   </span>
                                   <span className="flex items-center gap-1.5 bg-stone-900 px-2.5 py-1 text-xs border border-border">
                                     <Clock size={12} className="text-gold" />
-                                    {res.time}
+                                    {res.type === "event" ? t.resEventFullDay : res.time}
                                   </span>
                                   <span className="flex items-center gap-1.5 bg-stone-900 px-2.5 py-1 text-xs border border-border">
                                     <Users size={12} className="text-gold" />
@@ -453,6 +462,11 @@ export default function AdminPortal() {
                             <div className="space-y-1">
                               <h4 className="text-stone-200 font-serif text-base italic flex items-center gap-1.5 flex-wrap">
                                 {res.name}
+                                {res.type === "event" && (
+                                  <span className="text-[9px] font-sans font-bold uppercase bg-purple-500/10 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded-full">
+                                    {lang === "es" ? "Evento" : "Wydarzenie"}
+                                  </span>
+                                )}
                                 {res.tableName && (
                                   <span className="text-[9px] font-sans font-normal uppercase bg-gold/10 text-gold border border-gold/20 px-2 py-0.5 rounded-full">
                                     {res.tableName}
@@ -495,7 +509,7 @@ export default function AdminPortal() {
                             </span>
                             <span className="flex items-center gap-1 bg-stone-900 px-2 py-0.5 border border-border rounded">
                               <Clock size={10} className="text-gold" />
-                              {res.time}
+                              {res.type === "event" ? t.resEventFullDay : res.time}
                             </span>
                             <span className="flex items-center gap-1 bg-stone-900 px-2 py-0.5 border border-border rounded">
                               <Users size={10} className="text-gold" />

@@ -24,8 +24,7 @@ service cloud.firestore {
 
     function isValidReservation(data) {
       return data.keys().hasAll(['date', 'time', 'guests', 'name', 'email', 'phone', 'status', 'createdAt', 'updatedAt'])
-        && data.keys().size() >= 9
-        && data.keys().size() <= 11
+        && data.keys().hasOnly(['date', 'time', 'guests', 'name', 'email', 'phone', 'status', 'createdAt', 'updatedAt', 'tableId', 'tableIds', 'tableName', 'type'])
         && data.date is string && data.date.size() == 10
         && data.time is string && data.time.size() == 5
         && data.guests is int && data.guests > 0 && data.guests <= 20
@@ -34,26 +33,42 @@ service cloud.firestore {
         && data.phone is string && data.phone.size() >= 9 && data.phone.size() <= 20
         && data.status in ['confirmed', 'cancelled', 'attended']
         && data.createdAt == request.time
-        && data.updatedAt == request.time;
+        && data.updatedAt == request.time
+        && (!('type' in data) || data.type in ['table', 'event'])
+        && (!('tableId' in data) || (data.tableId is string && data.tableId.size() <= 128))
+        && (!('tableName' in data) || (data.tableName is string && data.tableName.size() <= 200))
+        && (!('tableIds' in data) || (data.tableIds is list && data.tableIds.size() <= 30));
     }
 
     match /reservations/{reservationId} {
       allow create: if isValidReservation(incoming());
-      
+
       allow get: if true; // Allow checking reservation status by ID
-      
-      // Allow the restaurant owner / managers to list bookings
-      allow list: if request.auth != null && request.auth.token.email == "bove.abt@gmail.com";
+
+      // The public booking form needs occupancy data (date/time/guests/tables)
+      // to compute real availability per table and per 2-hour window.
+      allow list: if true;
 
       allow update: if (
         // Self-cancellation by customer
         (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
          && incoming().status == 'cancelled'
-         && incoming().updatedAt == request.time) || 
+         && incoming().updatedAt == request.time) ||
         // Authorized action internally (by owner via Google Auth or passphrase)
         (incoming().updatedAt == request.time
-        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'tableId', 'tableName']))
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'tableId', 'tableIds', 'tableName']))
       );
+    }
+
+    // Global restaurant table layout (seeded with 5 tables of 4 seats).
+    // Read by the public booking form; written from the owner dashboard,
+    // which may be unlocked via passphrase (no Firebase Auth session),
+    // so writes are validated structurally instead of by identity.
+    match /settings/restaurant_layout {
+      allow read: if true;
+      allow write: if incoming().keys().hasOnly(['tables'])
+        && incoming().tables is list
+        && incoming().tables.size() <= 30;
     }
 
     match /settings/{settingId} {

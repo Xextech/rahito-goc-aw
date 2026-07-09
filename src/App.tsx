@@ -5,6 +5,7 @@ import ReservationForm from "./components/ReservationForm";
 import Reviews from "./components/Reviews";
 import AdminPortal from "./components/AdminPortal";
 import { PrivacyPolicyModal, TermsOfServiceModal } from "./components/LegalModals";
+import CookieBanner from "./components/CookieBanner";
 import { useLanguage } from "./context/LanguageContext";
 import { cn } from "./lib/utils";
 
@@ -294,6 +295,9 @@ export default function App() {
         </nav>
 
         <AdminPortal />
+
+        {/* EU Cookie Consent */}
+        <CookieBanner onShowPrivacy={() => { setShowAdmin(false); setShowPrivacy(true); }} />
       </div>
     );
   }
@@ -763,11 +767,14 @@ export default function App() {
         onClose={() => setShowPrivacy(false)} 
         lang={lang} 
       />
-      <TermsOfServiceModal 
-        isOpen={showTerms} 
-        onClose={() => setShowTerms(false)} 
-        lang={lang} 
+      <TermsOfServiceModal
+        isOpen={showTerms}
+        onClose={() => setShowTerms(false)}
+        lang={lang}
       />
+
+      {/* EU Cookie Consent */}
+      <CookieBanner onShowPrivacy={() => setShowPrivacy(true)} />
     </div>
   );
 }

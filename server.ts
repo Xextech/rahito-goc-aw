@@ -32,10 +32,15 @@ async function startServer() {
 
   // SMTP Email notification route for bookings (translates to PHPMailer logic in Node)
   app.post("/api/notify-reservation", async (req, res) => {
-    const { name, email, phone, date, time, guests, bookingRef } = req.body;
+    const { name, email, phone, date, time, guests, bookingRef, tableName, type } = req.body;
     if (!name || !email || !date || !time || !guests) {
       return res.status(400).json({ error: "Missing required fields" });
     }
+    const isEvent = type === "event";
+    const displayTime = isEvent ? "Día completo (Evento Privado)" : time;
+    const tableRowHtml = tableName
+      ? `<tr style="border-bottom: 1px solid #292524;"><td style="padding: 10px 0; font-weight: bold; color: #d97706; font-size: 13px; text-transform: uppercase;">Mesa:</td><td style="color: #f5f5f4;">${tableName}</td></tr>`
+      : "";
 
     try {
       const smtpHost = process.env.SMTP_HOST;
@@ -62,14 +67,16 @@ async function startServer() {
       const cancelUrl = `${baseUrl.replace(/\/$/, "")}/api/cancel-reservation?id=${bookingRef}`;
 
       // 1. Owner's Email (contains admin portal link)
-      const ownerSubject = `🍽️ Nueva Reserva en Rahito Głogów - ${name}`;
-      const ownerText = `Se ha recibido una nueva reserva exclusiva:
+      const ownerSubject = isEvent
+        ? `🎉 Nuevo Evento Privado en Rahito Głogów - ${name}`
+        : `🍽️ Nueva Reserva en Rahito Głogów - ${name}`;
+      const ownerText = `Se ha recibido una nueva ${isEvent ? 'reserva de EVENTO PRIVADO (restaurante completo)' : 'reserva exclusiva'}:
 - Nombre: ${name}
 - Email: ${email}
 - Teléfono: ${phone || 'N/D'}
 - Fecha: ${date}
-- Hora: ${time}
-- Personas: ${guests} comensales
+- Hora: ${displayTime}
+- Personas: ${guests} comensales${tableName ? `\n- Mesa: ${tableName}` : ''}
 - Referencia: ${bookingRef}
 
 Gestione sus mesas directamente desde el Panel de Administración:
@@ -86,8 +93,9 @@ ${adminUrl}`;
               <tr style="border-bottom: 1px solid #292524;"><td style="padding: 10px 0; font-weight: bold; color: #d97706; font-size: 13px; text-transform: uppercase;">Email:</td><td style="color: #f5f5f4;">${email}</td></tr>
               <tr style="border-bottom: 1px solid #292524;"><td style="padding: 10px 0; font-weight: bold; color: #d97706; font-size: 13px; text-transform: uppercase;">Teléfono:</td><td style="color: #f5f5f4;">${phone || 'N/D'}</td></tr>
               <tr style="border-bottom: 1px solid #292524;"><td style="padding: 10px 0; font-weight: bold; color: #d97706; font-size: 13px; text-transform: uppercase;">Fecha:</td><td style="color: #f5f5f4;">${date}</td></tr>
-              <tr style="border-bottom: 1px solid #292524;"><td style="padding: 10px 0; font-weight: bold; color: #d97706; font-size: 13px; text-transform: uppercase;">Hora:</td><td style="color: #f5f5f4;">${time}</td></tr>
+              <tr style="border-bottom: 1px solid #292524;"><td style="padding: 10px 0; font-weight: bold; color: #d97706; font-size: 13px; text-transform: uppercase;">Hora:</td><td style="color: #f5f5f4;">${displayTime}</td></tr>
               <tr style="border-bottom: 1px solid #292524;"><td style="padding: 10px 0; font-weight: bold; color: #d97706; font-size: 13px; text-transform: uppercase;">Comensales:</td><td style="color: #f5f5f4; font-weight: bold;">${guests} comensales</td></tr>
+              ${tableRowHtml}
               <tr><td style="padding: 10px 0; font-weight: bold; color: #d97706; font-size: 13px; text-transform: uppercase;">Ref ID:</td><td style="font-family: monospace; color: #f5f5f4;">${bookingRef}</td></tr>
             </table>
           </div>
@@ -110,8 +118,8 @@ Tu reserva en Rahito Głogów ha sido confirmada con éxito. Esperamos darte la 
 
 Detalles de tu reserva:
 - Fecha: ${date}
-- Hora: ${time}
-- Comensales: ${guests} personas
+- Hora: ${displayTime}
+- Comensales: ${guests} personas${tableName ? `\n- Mesa: ${tableName}` : ''}
 - Referencia de Reserva: ${bookingRef}
 
 Si deseas realizar modificaciones o tienes peticiones especiales, por favor ponte en contacto con nosotros respondiendo a este correo.
@@ -126,8 +134,9 @@ Si deseas realizar modificaciones o tienes peticiones especiales, por favor pont
           <div style="background-color: #1c1917; padding: 15px; border-radius: 4px; margin: 20px 0;">
             <table style="width: 100%; border-collapse: collapse;">
               <tr style="border-bottom: 1px solid #292524;"><td style="padding: 10px 0; font-weight: bold; color: #d97706; width: 35%; font-size: 13px; text-transform: uppercase;">Fecha:</td><td style="color: #f5f5f4;">${date}</td></tr>
-              <tr style="border-bottom: 1px solid #292524;"><td style="padding: 10px 0; font-weight: bold; color: #d97706; font-size: 13px; text-transform: uppercase;">Hora:</td><td style="color: #f5f5f4;">${time}</td></tr>
+              <tr style="border-bottom: 1px solid #292524;"><td style="padding: 10px 0; font-weight: bold; color: #d97706; font-size: 13px; text-transform: uppercase;">Hora:</td><td style="color: #f5f5f4;">${displayTime}</td></tr>
               <tr style="border-bottom: 1px solid #292524;"><td style="padding: 10px 0; font-weight: bold; color: #d97706; font-size: 13px; text-transform: uppercase;">Comensales:</td><td style="color: #f5f5f4; font-weight: bold;">${guests} comensales</td></tr>
+              ${tableRowHtml}
               <tr><td style="padding: 10px 0; font-weight: bold; color: #d97706; font-size: 13px; text-transform: uppercase;">Ref ID:</td><td style="font-family: monospace; color: #f5f5f4;">${bookingRef}</td></tr>
             </table>
           </div>
