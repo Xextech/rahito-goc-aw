@@ -149,87 +149,15 @@ export default function App() {
   const [menuIndex, setMenuIndex] = useState(0);
 
   const dishes = [
-    {
-      id: "dish_1",
-      tag: lang === "es" ? "ESPECIALIDAD" : "SPECJALNOŚĆ",
-      title: lang === "es" ? "Paella de Marisco Tradicional" : "Tradycyjna Paella de Marisco",
-      desc: lang === "es" 
-        ? "Nuestra obra maestra marinera. Arroz bomba infusionado con un caldo concentrado de roca, coronado con langostinos, calamares y mejillones frescos seleccionados diariamente."
-        : "Nasze arcydzieło prosto z morza. Ryż bomba nasączony esencjonalnym bulionem z owoców morza, podawany z krewetkami tygrysimi, kalmarami i świeżymi małżami.",
-      img: "/paella marisco 2.jpg"
-    },
-    {
-      id: "dish_2",
-      tag: lang === "es" ? "RECORRIDO" : "KLASYKA",
-      title: lang === "es" ? "Tabla de Quesos y Embutidos" : "Deska Serów i Wędlin",
-      desc: lang === "es"
-        ? "Un recorrido por el mapa quesero y de charcutería artesanal. Selección de quesos curados de oveja y cabra, acompañados de embutidos tradicionales curados al aire de la sierra."
-        : "Podróż po mapie hiszpańskich serów i wędlin rzemieślniczych. Wybór dojrzałych serów owczych i kozich w towarzystwie tradycyjnych wędlin dojrzewających na górskim powietrzu.",
-      img: "/bandeja-de-surtido.v2.jpg"
-    },
-    {
-      id: "dish_3",
-      tag: lang === "es" ? "LEGADO" : "DZIEDZICTWO",
-      title: lang === "es" ? "Jamón Ibérico de Bellota" : "Jamón Ibérico de Bellota",
-      desc: lang === "es"
-        ? "El mayor tesoro de la gastronomía española. Finas lonchas de jamón ibérico de bellota cortadas a mano al instante, con un veteado perfecto que se funde delicadamente en el paladar."
-        : "Największy skarb hiszpańskiej gastronomii. Cienkie, ręcznie krojone plastry dojrzewającej szynki iberyjskiej z żołędziowego wypasu, o doskonałym marmurkowaniu rozpływającym się w ustach.",
-      img: "/plato de jamon.jpg"
-    },
-    {
-      id: "dish_4",
-      tag: lang === "es" ? "PLACER" : "SŁODKA CHWILA",
-      title: lang === "es" ? "Torrija Caramelizada" : "Karmelizowana Torrija z Lodami",
-      desc: lang === "es"
-        ? "La dulzura de la infancia elevada al arte. Brioche tierno infusionado en leche de vainilla, canela y cítricos, caramelizado a la llama y servido con helado artesanal de leche merengada."
-        : "Słodycz dzieciństwa podniesiona do rangi sztuki. Delikatna chałka maślana nasączona mlekiem z wanilią, cynamonem i cytrusami, skarmelizowana ogniem i podawana z rzemieślniczymi lodami.",
-      img: "/postre.jpg"
-    },
-    {
-      id: "dish_5",
-      tag: lang === "es" ? "SABOR" : "DOJRZAŁY SMAK",
-      title: lang === "es" ? "Paella del Señorito" : "Paella del Señorito",
-      desc: lang === "es"
-        ? "El placer de comer sin pausas. Arroz con todo el marisco completamente pelado e integrado, cocinado a fuego vivo con un sofrito denso de sepia, azafrán y ñoras."
-        : "Przyjemność jedzenia bez barier. Aromatyczny ryż z całkowicie obranymi owocami morza, gotowany na dużym ogniu z gęstym sofrito z mątwy, szafranu i suszonych papryczek ñoras.",
-      img: "/paella de marisco 2.jpg"
-    },
-    {
-      id: "dish_6",
-      tag: lang === "es" ? "BOCADO" : "PRZEKĄSKA",
-      title: lang === "es" ? "Surtido de Empanadillas" : "Zestaw Chrupiących Empanadillas",
-      desc: lang === "es"
-        ? "El aperitivo perfecto para compartir. Empanadillas artesanales crujientes rellenas de nuestros guisos caseros más queridos, horneadas al punto exacto de dorado y sazón."
-        : "Idealna przystawka do dzielenia się. Chrupiące, rzemieślnicze pierożki nadziewane naszymi ulubionymi domowymi potrawami, pieczone na złocisty kolor.",
-      img: "/bandeja de empanadas.jpg"
-    },
-    {
-      id: "dish_7",
-      tag: lang === "es" ? "CALIDEZ" : "DOMOWE CIEPŁO",
-      title: lang === "es" ? "Empanadas Caseras de la Abuela" : "Domowe Empanadas Babci",
-      desc: lang === "es"
-        ? "Receta secreta transmitida de generación en generación. Masa tierna y esponjosa rellena de un sofrito casero de atún, huevo cocido y pimientos asados al horno de leña."
-        : "Sekretny przepis przekazywany z pokolenia na pokolenie. Puszyste i delikatne ciasto wypełnione domowym sofrito z tuńczyka, gotowanego jajka i papryki pieczonej w piecu opalany drewnem.",
-      img: "/empanadas.jpg"
-    },
-    {
-      id: "dish_8",
-      tag: lang === "es" ? "TRADICIÓN" : "TRADYCJA",
-      title: lang === "es" ? "Paella de Conejo y Romero" : "Paella z Królikiem i Rozmarynem",
-      desc: lang === "es"
-        ? "La esencia del interior mediterráneo. Arroz meloso cocinado lentamente con tierno conejo de campo, judías planas tradicionales y un toque ahumado de romero silvestre fresco."
-        : "Esencja śródziemnomorskiego wnętrza kraju. Wolno gotowany, aromatyczny ryż z delikatnym królikiem, tradycyjną płaską fasolą i wędzonym akcentem świeżego dzikiego rozmarynu.",
-      img: "/paella-de-conejo.v2.jpg"
-    },
-    {
-      id: "dish_9",
-      tag: lang === "es" ? "FRESCURA" : "ORZEŹWIENIE",
-      title: lang === "es" ? "Mojito de Autor" : "Autorskie Mojito",
-      desc: lang === "es"
-        ? "Frescura botánica en su máxima expresión. Hierbabuena fresca seleccionada, ron añejo macerado con cítricos y agua con gas premium para un trago largo, vibrante y refrescante."
-        : "Botaniczna świeżość w najlepszym wydaniu. Wyselekcjonowana świeża mięta, starzony rum macerowany z cytrusami i wysokiej jakości woda gazowana dla żywego, orzeźwiającego smaku.",
-      img: "/Mohito.jpg"
-    }
+    { id: "dish_1", tag: t.dish1Tag, title: t.dish1Title, desc: t.dish1Desc, img: "/paella marisco 2.jpg" },
+    { id: "dish_2", tag: t.dish2Tag, title: t.dish2Title, desc: t.dish2Desc, img: "/bandeja-de-surtido.v2.jpg" },
+    { id: "dish_3", tag: t.dish3Tag, title: t.dish3Title, desc: t.dish3Desc, img: "/plato de jamon.jpg" },
+    { id: "dish_4", tag: t.dish4Tag, title: t.dish4Title, desc: t.dish4Desc, img: "/postre.jpg" },
+    { id: "dish_5", tag: t.dish5Tag, title: t.dish5Title, desc: t.dish5Desc, img: "/paella de marisco 2.jpg" },
+    { id: "dish_6", tag: t.dish6Tag, title: t.dish6Title, desc: t.dish6Desc, img: "/bandeja de empanadas.jpg" },
+    { id: "dish_7", tag: t.dish7Tag, title: t.dish7Title, desc: t.dish7Desc, img: "/empanadas.jpg" },
+    { id: "dish_8", tag: t.dish8Tag, title: t.dish8Title, desc: t.dish8Desc, img: "/paella-de-conejo.v2.jpg" },
+    { id: "dish_9", tag: t.dish9Tag, title: t.dish9Title, desc: t.dish9Desc, img: "/Mohito.jpg" },
   ];
 
   React.useEffect(() => {
@@ -289,7 +217,7 @@ export default function App() {
               onClick={() => setShowAdmin(false)}
               className="px-3 sm:px-6 py-1.5 sm:py-2 border border-gold text-[8px] sm:text-[10px] uppercase tracking-widest text-gold hover:bg-gold hover:text-dark transition-all duration-300"
             >
-              {lang === "es" ? "Salir" : "Wyjdź"}
+              {t.adminExitLabel}
             </button>
           </div>
         </nav>
@@ -685,9 +613,9 @@ export default function App() {
           <div className="text-center space-y-6 max-w-2xl">
             <h2 className="text-5xl md:text-8xl font-serif font-light tracking-tight italic">{t.resTitle}</h2>
             <div className="flex gap-4 justify-center text-[10px] tracking-[0.4em] uppercase text-stone-600">
-              <span className="text-gold">{lang === "es" ? "Mesas" : "Stoliki"}</span>
-              <span>{lang === "es" ? "Eventos" : "Wydarzenia"}</span>
-              <span>{lang === "es" ? "Privado" : "Prywatne"}</span>
+              <span className="text-gold">{t.resSubtitleTables}</span>
+              <span>{t.resSubtitleEvents}</span>
+              <span>{t.resSubtitlePrivate}</span>
             </div>
           </div>
           <div className="w-full">
@@ -755,7 +683,7 @@ export default function App() {
                onClick={() => setShowAdmin(true)}
                className="hover:text-gold transition-colors flex items-center gap-1 cursor-pointer"
              >
-               <Shield size={10} /> {lang === "es" ? "Acceso Propietario" : "Logowanie Właściciela"}
+               <Shield size={10} /> {t.footerOwnerAccess}
              </button>
            </div>
         </div>

@@ -138,9 +138,9 @@ export default function ReservationForm() {
         } else if (data.error === "no_availability") {
           setError(t.resNoAvailability);
         } else if (res.status === 429) {
-          setError(lang === "es" ? "Demasiados intentos. Espere unos minutos e inténtelo de nuevo." : "Zbyt wiele prób. Odczekaj kilka minut i spróbuj ponownie.");
+          setError(t.resErrorRateLimited);
         } else {
-          setError(lang === "es" ? "Error al registrar la reserva. Inténtelo de nuevo." : "Nie udało się zarezerwować stolika. Spróbuj ponownie później.");
+          setError(t.resErrorGeneric);
         }
         // Refresh availability: someone else may have just taken the slot.
         fetchAvailability();
@@ -153,7 +153,7 @@ export default function ReservationForm() {
       fetchAvailability();
     } catch (err: any) {
       console.error(err);
-      setError(lang === "es" ? "Error al registrar la reserva. Inténtelo de nuevo." : "Nie udało się zarezerwować stolika. Spróbuj ponownie później.");
+      setError(t.resErrorGeneric);
     } finally {
       setLoading(false);
     }
@@ -252,13 +252,13 @@ export default function ReservationForm() {
               {availabilityError && (
                 <div className="text-rose-500/80 text-[10px] uppercase tracking-widest bg-rose-500/5 p-4 border border-rose-500/20 italic flex items-center gap-2">
                   <AlertCircle size={14} />
-                  <span>{lang === "es" ? "No se pudo cargar la disponibilidad. Actualice la página." : "Nie udało się wczytać dostępności. Odśwież stronę."}</span>
+                  <span>{t.resAvailabilityError}</span>
                 </div>
               )}
 
               <div className="space-y-6">
                 <div className="grid grid-cols-7 gap-1">
-                  {(lang === "es" ? ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"] : ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nie"]).map(d => (
+                  {t.resWeekdaysShort.map(d => (
                     <div key={d} className="text-[9px] text-stone-600 uppercase tracking-tighter text-center py-2">{d}</div>
                   ))}
                   {/* Celdas vacías para alinear el primer día con su columna real */}
@@ -304,7 +304,7 @@ export default function ReservationForm() {
                       const isMonday = date.getDay() === 1;
                       if (isMonday) {
                         return (
-                          <div className="col-span-3 sm:col-span-4 text-center text-stone-500 py-4 italic">{lang === 'es' ? 'Cerrado' : 'Zamknięte'}</div>
+                          <div className="col-span-3 sm:col-span-4 text-center text-stone-500 py-4 italic">{t.resClosedLabel}</div>
                         );
                       }
 
@@ -333,7 +333,7 @@ export default function ReservationForm() {
                             {disabled && (
                               <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none">
                                 <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(135deg, rgba(0,0,0,0.45) 0 50%, rgba(255,255,255,0.02) 50%)' }} />
-                                <span className="z-10 text-xs uppercase tracking-widest text-white font-bold drop-shadow-lg">{lang === 'es' ? 'COMPLETO' : 'PEŁNE'}</span>
+                                <span className="z-10 text-xs uppercase tracking-widest text-white font-bold drop-shadow-lg">{t.resFullLabel}</span>
                               </div>
                             )}
                           </button>
