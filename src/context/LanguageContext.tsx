@@ -13,9 +13,9 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [lang, setLangState] = useState<Language>(() => {
     const saved = localStorage.getItem('rahito_lang');
     if (saved === 'es' || saved === 'pl') return saved as Language;
-    
-    // Default to Spanish if user email suggests or fallback
-    return 'es';
+
+    // Rahito operates in Głogów, Poland — default to Polish for new visitors.
+    return 'pl';
   });
 
   const setLang = (newLang: Language) => {

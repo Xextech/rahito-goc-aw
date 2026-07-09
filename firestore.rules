@@ -6,10 +6,6 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -22,10 +18,19 @@ service cloud.firestore {
       return resource.data;
     }
 
+    // True for a Google sign-in as the owner's personal account, OR a
+    // Firebase Auth custom-token session minted by the server after it
+    // verified the dashboard passphrase (see /api/admin/login). Both are
+    // real Firebase Auth sessions — the dashboard has no path that
+    // bypasses these rules.
+    function isOwner() {
+      return request.auth != null &&
+        (request.auth.token.email == "bove.abt@gmail.com" || request.auth.token.owner == true);
+    }
+
     function isValidReservation(data) {
       return data.keys().hasAll(['date', 'time', 'guests', 'name', 'email', 'phone', 'status', 'createdAt', 'updatedAt'])
-        && data.keys().size() >= 9
-        && data.keys().size() <= 11
+        && data.keys().hasOnly(['date', 'time', 'guests', 'name', 'email', 'phone', 'status', 'createdAt', 'updatedAt', 'tableId', 'tableIds', 'tableName', 'type'])
         && data.date is string && data.date.size() == 10
         && data.time is string && data.time.size() == 5
         && data.guests is int && data.guests > 0 && data.guests <= 20
@@ -34,31 +39,56 @@ service cloud.firestore {
         && data.phone is string && data.phone.size() >= 9 && data.phone.size() <= 20
         && data.status in ['confirmed', 'cancelled', 'attended']
         && data.createdAt == request.time
-        && data.updatedAt == request.time;
+        && data.updatedAt == request.time
+        && (!('type' in data) || data.type in ['table', 'event'])
+        && (!('tableId' in data) || (data.tableId is string && data.tableId.size() <= 128))
+        && (!('tableName' in data) || (data.tableName is string && data.tableName.size() <= 200))
+        && (!('tableIds' in data) || (data.tableIds is list && data.tableIds.size() <= 30));
     }
 
     match /reservations/{reservationId} {
-      allow create: if isValidReservation(incoming());
-      
-      allow get: if true; // Allow checking reservation status by ID
-      
-      // Allow the restaurant owner / managers to list bookings
-      allow list: if request.auth != null && request.auth.token.email == "bove.abt@gmail.com";
+      // Reservations are created exclusively by the trusted server
+      // (Firebase Admin, /api/reservations), which validates real
+      // availability, the 2-hour table hold and event-day exclusivity
+      // before writing. The client can no longer create a reservation
+      // document directly, so it cannot bypass any of that logic.
+      allow create: if false;
+
+      // A customer can look up their own booking by the random ID from
+      // their confirmation email/cancel link (no `list`, so this cannot
+      // be used to enumerate reservations).
+      allow get: if true;
+
+      // Only the owner (Google sign-in or passphrase-authenticated
+      // session) may list reservations. The public site never needs this:
+      // availability is served pre-aggregated and PII-free by the server.
+      allow list: if isOwner();
 
       allow update: if (
-        // Self-cancellation by customer
+        // Self-cancellation by the customer via their own link
         (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
          && incoming().status == 'cancelled'
-         && incoming().updatedAt == request.time) || 
-        // Authorized action internally (by owner via Google Auth or passphrase)
-        (incoming().updatedAt == request.time
-        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'tableId', 'tableName']))
+         && incoming().updatedAt == request.time) ||
+        // Owner: confirm/cancel + (re)assign a table from the dashboard
+        (isOwner()
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'tableId', 'tableIds', 'tableName']))
       );
     }
 
+    // Restaurant table layout (seeded with 5 tables of 4 seats). Only the
+    // owner dashboard reads/writes it directly; the public booking form
+    // gets tables from the server's /api/availability response instead.
+    match /settings/restaurant_layout {
+      allow read: if isOwner();
+      allow write: if isOwner()
+        && incoming().keys().hasOnly(['tables'])
+        && incoming().tables is list
+        && incoming().tables.size() <= 30;
+    }
+
     match /settings/{settingId} {
-      allow read: if true;
-      allow write: if request.auth != null && request.auth.token.email == "bove.abt@gmail.com";
+      allow read, write: if isOwner();
     }
   }
 }

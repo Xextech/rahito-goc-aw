@@ -60,6 +60,16 @@ export interface Translation {
   resConfirmedDesc: string;
   resReference: string;
   resNewBooking: string;
+  resModeTable: string;
+  resModeEvent: string;
+  resEventDesc: string;
+  resEventFullDay: string;
+  resEventWholeVenue: string;
+  resEventDayBlocked: string;
+  resEventDayTaken: string;
+  resNoAvailability: string;
+  resLargeGroupNote: string;
+  resTableLabel: string;
 
   // Form Fields
   fieldFullName: string;
@@ -106,6 +116,13 @@ export interface Translation {
   adminBtnConfirm: string;
   adminTabCalendar: string;
   adminTabList: string;
+
+  // Cookie Consent (EU)
+  cookieTitle: string;
+  cookieText: string;
+  cookieAccept: string;
+  cookieReject: string;
+  cookieMore: string;
 }
 
 export const translations: Record<Language, Translation> = {
@@ -158,6 +175,16 @@ export const translations: Record<Language, Translation> = {
     resConfirmedDesc: "Hemos preparado su espacio. Nos vemos en Rahito.",
     resReference: "Referencia",
     resNewBooking: "Nueva Reserva",
+    resModeTable: "Reserva de Mesa",
+    resModeEvent: "Evento Privado",
+    resEventDesc: "Reserve el restaurante entero para su celebración privada. El día quedará bloqueado en exclusiva para usted y sus invitados.",
+    resEventFullDay: "Día completo",
+    resEventWholeVenue: "Restaurante completo",
+    resEventDayBlocked: "Día bloqueado por evento privado",
+    resEventDayTaken: "Este día ya tiene reservas y no puede bloquearse para un evento. Elija otra fecha.",
+    resNoAvailability: "No quedan mesas disponibles para esa hora. Por favor, elija otro horario.",
+    resLargeGroupNote: "Los grupos de 10 o más ocupan el restaurante completo.",
+    resTableLabel: "Mesa asignada",
     fieldFullName: "Nombre Completo",
     fieldEmail: "Correo Electrónico",
     fieldPhone: "Teléfono",
@@ -197,7 +224,12 @@ export const translations: Record<Language, Translation> = {
     adminBtnCancel: "Cancelar",
     adminBtnConfirm: "Confirmar",
     adminTabCalendar: "Vista Calendario",
-    adminTabList: "Ver Todas"
+    adminTabList: "Ver Todas",
+    cookieTitle: "Cookies y Privacidad",
+    cookieText: "Utilizamos únicamente almacenamiento técnico propio y estrictamente necesario (su idioma y esta decisión de cookies). No usamos cookies de analítica ni de terceros, conforme al RGPD y la normativa de la UE.",
+    cookieAccept: "Aceptar",
+    cookieReject: "Rechazar",
+    cookieMore: "Política de Privacidad"
   },
   pl: {
     navMenu: "Menu",
@@ -248,13 +280,23 @@ export const translations: Record<Language, Translation> = {
     resConfirmedDesc: "Przygotowaliśmy dla Ciebie stolik. Do zobaczenia w Rahito.",
     resReference: "Numer rezerwacji",
     resNewBooking: "Nowa Rezerwacja",
+    resModeTable: "Rezerwacja Stolika",
+    resModeEvent: "Wydarzenie Prywatne",
+    resEventDesc: "Zarezerwuj całą restaurację na swoją prywatną uroczystość. Ten dzień zostanie zablokowany wyłącznie dla Ciebie i Twoich gości.",
+    resEventFullDay: "Cały dzień",
+    resEventWholeVenue: "Cała restauracja",
+    resEventDayBlocked: "Dzień zablokowany przez wydarzenie prywatne",
+    resEventDayTaken: "Ten dzień ma już rezerwacje i nie może zostać zablokowany na wydarzenie. Wybierz inną datę.",
+    resNoAvailability: "Brak wolnych stolików o tej godzinie. Prosimy wybrać inny termin.",
+    resLargeGroupNote: "Grupy od 10 osób zajmują całą restaurację.",
+    resTableLabel: "Przypisany stolik",
     fieldFullName: "Imię i Nazwisko",
     fieldEmail: "Adres E-mail",
     fieldPhone: "Numer Telefonu",
     fieldPersonalTitle: "Dane Osobowe",
     footerTagline: "Najbardziej kameralna restauracja w Głogowie.",
     footerLocation: "Lokalizacja",
-    footerAddress: "Stawna 8, 67-200 Głogów, Polonia",
+    footerAddress: "Stawna 8, 67-200 Głogów, Polska",
     footerHours: "Godziny Otwarcia",
     footerHoursWeekdays: "Pon - Pt: 08:00 - 20:00 / Pt-Sob: 08:00 - 22:00",
     footerHoursWeekends: "",
@@ -287,6 +329,11 @@ export const translations: Record<Language, Translation> = {
     adminBtnCancel: "Anuluj",
     adminBtnConfirm: "Potwierdź",
     adminTabCalendar: "Widok Kalendarza",
-    adminTabList: "Wszystkie Rezerwacje"
+    adminTabList: "Wszystkie Rezerwacje",
+    cookieTitle: "Pliki Cookie i Prywatność",
+    cookieText: "Korzystamy wyłącznie z niezbędnego przechowywania lokalnego (Twój język i ta decyzja dotycząca cookies). Nie używamy plików analitycznych ani podmiotów trzecich, zgodnie z RODO i przepisami UE.",
+    cookieAccept: "Akceptuję",
+    cookieReject: "Odrzucam",
+    cookieMore: "Polityka Prywatności"
   }
 };

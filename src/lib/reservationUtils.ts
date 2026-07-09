@@ -1,5 +1,7 @@
 export const SLOT_CAPACITY = 20;
 export const FULL_SINGLE_THRESHOLD = 10;
+// Cada reserva ocupa su mesa durante una franja mínima de 2 horas
+export const RESERVATION_DURATION_MIN = 120;
 
 export interface TableDef {
   id: string;
@@ -10,19 +12,208 @@ export interface TableDef {
   shape: "round" | "square" | "counter";
 }
 
-export interface TableSuggestion {
-  tables: TableDef[];
-  description: { es: string; pl: string };
-  totalTables: number;
-  peakGuests: number;
-  peakTime: string;
-  totalParties: number;
-  hasLargeParty: boolean;
+// Distribución inicial del restaurante: 5 mesas de 4 personas (20 pax interior)
+export const DEFAULT_TABLES: TableDef[] = [
+  { id: "mesa_1", name: "Mesa 1", seats: 4, x: 22, y: 25, shape: "square" },
+  { id: "mesa_2", name: "Mesa 2", seats: 4, x: 50, y: 25, shape: "square" },
+  { id: "mesa_3", name: "Mesa 3", seats: 4, x: 78, y: 25, shape: "square" },
+  { id: "mesa_4", name: "Mesa 4", seats: 4, x: 35, y: 65, shape: "square" },
+  { id: "mesa_5", name: "Mesa 5", seats: 4, x: 65, y: 65, shape: "square" },
+];
+
+export const FULL_RESTAURANT_LABEL = "Restaurante completo";
+
+export interface ReservationSlot {
+  time: string;
+  guests: number;
+  status: string;
+  tableIds?: string[];
+  tableId?: string;
+  type?: string; // "table" | "event"
+}
+
+export interface TableAssignment {
+  tableIds: string[];
+  tableName: string;
+}
+
+export function timeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
 }
 
 /**
- * Given a map of occupancy for a date (time -> { total, hasLarge }) and ordered timeSlots,
- * returns a Set of disabled slot strings (including follow-up blocked slots).
+ * Una mesa ocupada por una reserva que empieza a `existingTime` permanece
+ * bloqueada durante los `durationMin` (2h) siguientes. La franja se
+ * bloquea únicamente hacia ADELANTE: una reserva a las 21:00 no impide
+ * reservar la misma mesa a las 19:00 (esa reserva anterior ya habría
+ * liberado la mesa antes de las 21:00).
+ */
+export function blocksSlot(existingTime: string, candidateTime: string, durationMin = RESERVATION_DURATION_MIN): boolean {
+  const existing = timeToMinutes(existingTime);
+  const candidate = timeToMinutes(candidateTime);
+  return candidate >= existing && candidate < existing + durationMin;
+}
+
+export function isActiveReservation(r: { status: string }): boolean {
+  return r.status !== "cancelled";
+}
+
+export function getReservationTableIds(r: ReservationSlot): string[] {
+  if (Array.isArray(r.tableIds) && r.tableIds.length > 0) return r.tableIds;
+  if (r.tableId) return [r.tableId];
+  return [];
+}
+
+/** Un evento privado reserva el restaurante entero y bloquea el día completo. */
+export function hasFullDayEvent(dayReservations: ReservationSlot[]): boolean {
+  return dayReservations.some((r) => isActiveReservation(r) && r.type === "event");
+}
+
+/**
+ * Mesas ocupadas para una hora dada, considerando la ventana de 2 horas.
+ * Un grupo grande (>= 10) o un evento bloquean todas las mesas: las 2 mesas
+ * restantes no se pueden usar por falta de espacio.
+ */
+export function getOccupiedTableIds(
+  dayReservations: ReservationSlot[],
+  time: string,
+  tables: TableDef[]
+): Set<string> {
+  const occupied = new Set<string>();
+  for (const r of dayReservations) {
+    if (!isActiveReservation(r)) continue;
+    if (r.type === "event") {
+      tables.forEach((t) => occupied.add(t.id));
+      continue;
+    }
+    if (!blocksSlot(r.time, time)) continue;
+    if (r.guests >= FULL_SINGLE_THRESHOLD) {
+      tables.forEach((t) => occupied.add(t.id));
+      continue;
+    }
+    getReservationTableIds(r).forEach((id) => occupied.add(id));
+  }
+  return occupied;
+}
+
+/** Elige el mínimo de mesas libres que acomode al grupo (mejor ajuste). */
+function pickTables(freeTables: TableDef[], guests: number): TableDef[] | null {
+  // 1. La mesa individual más pequeña donde quepa el grupo
+  const single = freeTables
+    .filter((t) => t.seats >= guests)
+    .sort((a, b) => a.seats - b.seats)[0];
+  if (single) return [single];
+
+  // 2. Combinar mesas (las más grandes primero) hasta cubrir el grupo
+  const sorted = [...freeTables].sort((a, b) => b.seats - a.seats);
+  const picked: TableDef[] = [];
+  let capacity = 0;
+  for (const t of sorted) {
+    picked.push(t);
+    capacity += t.seats;
+    if (capacity >= guests) return picked;
+  }
+  return null;
+}
+
+/**
+ * Asigna automáticamente mesa(s) a una nueva reserva.
+ *
+ *  - Respeta la franja de 2 horas: una mesa reservada no se libera hasta
+ *    2 horas después de la hora de la reserva.
+ *  - Grupos >= 10 necesitan el restaurante entero (las mesas sobrantes
+ *    quedan bloqueadas por falta de espacio).
+ *  - Un evento privado bloquea el día completo.
+ *
+ * Devuelve null si no hay disponibilidad.
+ */
+export function autoAssignTables(
+  dayReservations: ReservationSlot[],
+  tables: TableDef[],
+  time: string,
+  guests: number
+): TableAssignment | null {
+  if (tables.length === 0 || guests <= 0) return null;
+
+  const active = dayReservations.filter(isActiveReservation);
+  if (active.some((r) => r.type === "event")) return null;
+
+  const occupied = getOccupiedTableIds(active, time, tables);
+  let free = tables.filter((t) => !occupied.has(t.id));
+
+  // Reservas solapadas sin mesa asignada (p. ej. antiguas): reservarles
+  // capacidad virtualmente para no sobrevender el salón.
+  const unassignedOverlapping = active.filter(
+    (r) =>
+      r.type !== "event" &&
+      r.guests < FULL_SINGLE_THRESHOLD &&
+      blocksSlot(r.time, time) &&
+      getReservationTableIds(r).length === 0
+  );
+  for (const r of unassignedOverlapping) {
+    const virtual = pickTables(free, r.guests);
+    if (!virtual) return null; // salón sobrevendido: no aceptar más
+    const virtualIds = new Set(virtual.map((t) => t.id));
+    free = free.filter((t) => !virtualIds.has(t.id));
+  }
+
+  if (guests >= FULL_SINGLE_THRESHOLD) {
+    // El grupo grande ocupa el restaurante entero: todas las mesas libres
+    if (free.length !== tables.length) return null;
+    return {
+      tableIds: tables.map((t) => t.id),
+      tableName: FULL_RESTAURANT_LABEL,
+    };
+  }
+
+  const picked = pickTables(free, guests);
+  if (!picked) return null;
+  return {
+    tableIds: picked.map((t) => t.id),
+    tableName: picked.map((t) => t.name).join(" + "),
+  };
+}
+
+export function canFitParty(
+  dayReservations: ReservationSlot[],
+  tables: TableDef[],
+  time: string,
+  guests: number
+): boolean {
+  return autoAssignTables(dayReservations, tables, time, guests) !== null;
+}
+
+/**
+ * Horas deshabilitadas para un grupo dado: aquellas en las que ninguna
+ * combinación de mesas libres puede acomodarlo (ventana de 2h incluida).
+ */
+export function computeDisabledSlotsForParty(
+  dayReservations: ReservationSlot[],
+  tables: TableDef[],
+  timeSlots: string[],
+  guests: number
+): Set<string> {
+  const disabled = new Set<string>();
+  for (const slot of timeSlots) {
+    if (!canFitParty(dayReservations, tables, slot, guests)) disabled.add(slot);
+  }
+  return disabled;
+}
+
+/** Día completo sin hueco para el grupo: se marca ocupado en el calendario. */
+export function isDayFullyBooked(
+  dayReservations: ReservationSlot[],
+  tables: TableDef[],
+  timeSlots: string[],
+  guests: number
+): boolean {
+  return timeSlots.every((slot) => !canFitParty(dayReservations, tables, slot, guests));
+}
+
+/**
+ * (Legado) Ocupación agregada por franjas: una franja llena bloquea también
+ * las 4 siguientes (2 horas).
  */
 export function computeDisabledSlots(
   dayOccupancy: Record<string, { total: number; hasLarge: boolean }>,
@@ -51,120 +242,16 @@ export function isSlotFullInfo(info?: { total: number; hasLarge: boolean }) {
   return info.hasLarge || info.total >= SLOT_CAPACITY;
 }
 
-/**
- * Analyze confirmed reservations for a day and suggest the optimal table layout.
- *
- * Logic:
- *  - Find the peak time slot (maximum concurrent guests).
- *  - If any party >= FULL_SINGLE_THRESHOLD (10): create large table(s) at centre,
- *    and smaller tables around the edges. The room fits fewer total tables.
- *  - Otherwise: create one table per party, arranged in a grid, sized to fit.
- *  - If no reservations exist, return the default layout as-is.
- */
-export function computeDayTableSuggestion(
-  dayReservations: { guests: number; time: string; status: string }[],
-  defaultTables: TableDef[]
-): TableSuggestion {
-  const confirmed = dayReservations.filter((r) => r.status === "confirmed");
-  const empty: TableSuggestion = {
-    tables: defaultTables,
-    description: { es: "No hay reservas. Se muestra la configuración por defecto.", pl: "Brak rezerwacji. Domyślny układ." },
-    totalTables: defaultTables.length,
-    peakGuests: 0,
-    peakTime: "",
-    totalParties: 0,
-    hasLargeParty: false,
-  };
-
-  if (confirmed.length === 0) return empty;
-
-  // Group by time slot to find peak
-  const slotGroups: Record<string, { guests: number; time: string }[]> = {};
-  confirmed.forEach((r) => {
-    if (!slotGroups[r.time]) slotGroups[r.time] = [];
-    slotGroups[r.time].push(r);
-  });
-
-  let peakSlot = "";
-  let peakTotal = 0;
-  for (const [slot, group] of Object.entries(slotGroups)) {
-    const total = group.reduce((s, r) => s + r.guests, 0);
-    if (total > peakTotal) {
-      peakTotal = total;
-      peakSlot = slot;
-    }
-  }
-
-  const peakParties = slotGroups[peakSlot] || [];
-  const sorted = [...peakParties].sort((a, b) => b.guests - a.guests);
-  const hasLarge = sorted.some((r) => r.guests >= FULL_SINGLE_THRESHOLD);
-
-  const tables: TableDef[] = [];
-
-  if (hasLarge) {
-    // ── Large-party mode ──────────────────────────────────
-    // A large (≥10) table takes extra floor space, so fewer tables fit.
-    // Place the large table(s) in the centre, small tables around.
-    const largeParties = sorted.filter((r) => r.guests >= FULL_SINGLE_THRESHOLD);
-    const otherParties = sorted.filter((r) => r.guests < FULL_SINGLE_THRESHOLD);
-
-    largeParties.forEach((p, i) => {
-      const seats = Math.min(12, Math.max(10, Math.ceil(p.guests / 2) * 2));
-      tables.push({
-        id: `auto_large_${i}`,
-        name: i === 0 ? "Mesa Privada" : "Mesa Grande",
-        seats,
-        x: 50,
-        y: 25 + i * 20,
-        shape: "square",
-      });
-    });
-
-    otherParties.forEach((p, i) => {
-      const seats = Math.min(6, Math.max(2, Math.ceil(p.guests / 2) * 2));
-      tables.push({
-        id: `auto_std_${i}`,
-        name: `Mesa ${i + 1}`,
-        seats,
-        x: 20 + (i % 3) * 30,
-        y: 70 + Math.floor(i / 3) * 5,
-        shape: seats >= 4 ? "square" : "round",
-      });
-    });
-  } else {
-    // ── Standard mode ─────────────────────────────────────
-    // Each party gets its own table, sized appropriately.
-    const cols = Math.min(3, sorted.length);
-    const spacing = cols > 1 ? Math.floor(70 / (cols - 1)) : 0;
-    const yRows = [25, 50, 70];
-
-    sorted.forEach((p, i) => {
-      const col = i % cols;
-      const row = Math.min(Math.floor(i / cols), yRows.length - 1);
-      const seats = Math.min(6, Math.max(2, Math.ceil(p.guests / 2) * 2));
-      tables.push({
-        id: `auto_std_${i}`,
-        name: `Mesa ${i + 1}`,
-        seats,
-        x: 15 + col * spacing,
-        y: yRows[row],
-        shape: seats >= 4 ? "square" : "round",
-      });
-    });
-  }
-
-  return {
-    tables,
-    description: {
-      es: `${tables.length} mesas sugeridas para ${sorted.length} grupo(s) (${peakTotal} personas en hora punta a las ${peakSlot}).${hasLarge ? " Se ha reservado una mesa grande." : ""}`,
-      pl: `Sugerowano ${tables.length} stolików dla ${sorted.length} grup(y) (${peakTotal} osób w szczycie o ${peakSlot}).${hasLarge ? " Zarezerwowano duży stół." : ""}`,
-    },
-    totalTables: tables.length,
-    peakGuests: peakTotal,
-    peakTime: peakSlot,
-    totalParties: sorted.length,
-    hasLargeParty: hasLarge,
-  };
-}
-
-export default { computeDisabledSlots, isSlotFullInfo, computeDayTableSuggestion };
+export default {
+  computeDisabledSlots,
+  isSlotFullInfo,
+  autoAssignTables,
+  canFitParty,
+  computeDisabledSlotsForParty,
+  isDayFullyBooked,
+  hasFullDayEvent,
+  getOccupiedTableIds,
+  getReservationTableIds,
+  blocksSlot,
+  timeToMinutes,
+};

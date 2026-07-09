@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { collection, query, onSnapshot, doc, updateDoc, serverTimestamp, orderBy } from "firebase/firestore";
-import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
+import { signInWithPopup, signInWithCustomToken, GoogleAuthProvider, signOut } from "firebase/auth";
 import { db, auth } from "../lib/firebase";
 import { useLanguage } from "../context/LanguageContext";
 import { Calendar as CalendarIcon, Users, Clock, Mail, Phone, Check, X, Shield, LogOut, ArrowRight, Table } from "lucide-react";
@@ -19,7 +19,9 @@ interface Reservation {
   guests: number;
   status: "confirmed" | "cancelled" | "pending";
   tableId?: string;
+  tableIds?: string[];
   tableName?: string;
+  type?: string;
   createdAt?: any;
 }
 
@@ -28,6 +30,7 @@ export default function AdminPortal() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passphrase, setPassphrase] = useState("");
   const [passphraseError, setPassphraseError] = useState(false);
+  const [passphraseLoading, setPassphraseLoading] = useState(false);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [selectedDateFilter, setSelectedDateFilter] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"list" | "tableflow">("list");
@@ -35,14 +38,25 @@ export default function AdminPortal() {
 
   const activeLocale = lang === "es" ? es : pl;
 
-  // Track Auth state for Google Admin log-in
+  // Track Auth state for Google Admin log-in AND passphrase-based custom-token
+  // sign-in. Both paths result in a real Firebase Auth session so Firestore
+  // security rules (which require request.auth) can trust either one —
+  // the dashboard has no privileged path that bypasses the rules.
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         setUserEmail(user.email);
-        // If the logged-in user matches the owner email, grant portal access automatically
         if (user.email === "bove.abt@gmail.com") {
           setIsAuthenticated(true);
+          return;
+        }
+        try {
+          const tokenResult = await user.getIdTokenResult();
+          if (tokenResult.claims.owner === true) {
+            setIsAuthenticated(true);
+          }
+        } catch (err) {
+          console.error("Failed to read auth claims:", err);
         }
       } else {
         setUserEmail(null);
@@ -51,14 +65,32 @@ export default function AdminPortal() {
     return () => unsubscribe();
   }, []);
 
-  // Passphrase Login logic (e.g. "rahito2026")
-  const handlePassphraseSubmit = (e: React.FormEvent) => {
+  // Passphrase login: verified server-side, never checked in client code.
+  // Success mints a Firebase Auth custom token so the resulting session is
+  // indistinguishable from a Google sign-in as far as Firestore rules go.
+  const handlePassphraseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passphrase === "rahito2026") {
-      setIsAuthenticated(true);
-      setPassphraseError(false);
-    } else {
+    setPassphraseLoading(true);
+    setPassphraseError(false);
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ passphrase }),
+      });
+      if (!res.ok) {
+        setPassphraseError(true);
+        return;
+      }
+      const { token } = await res.json();
+      await signInWithCustomToken(auth, token);
+      // isAuthenticated is set by the onAuthStateChanged listener above
+      // once it observes the `owner` claim on the resulting session.
+    } catch (err) {
+      console.error("Passphrase login failed:", err);
       setPassphraseError(true);
+    } finally {
+      setPassphraseLoading(false);
     }
   };
 
@@ -108,7 +140,9 @@ export default function AdminPortal() {
           guests: Number(data.guests),
           status: data.status || "confirmed",
           tableId: data.tableId || "",
+          tableIds: Array.isArray(data.tableIds) ? data.tableIds : [],
           tableName: data.tableName || "",
+          type: data.type || "table",
           createdAt: data.createdAt,
         });
       });
@@ -195,7 +229,8 @@ export default function AdminPortal() {
 
             <button
               type="submit"
-              className="w-full py-4 bg-stone-muted text-dark uppercase tracking-[0.3em] font-bold text-xs hover:bg-gold transition-colors"
+              disabled={passphraseLoading}
+              className="w-full py-4 bg-stone-muted text-dark uppercase tracking-[0.3em] font-bold text-xs hover:bg-gold transition-colors disabled:opacity-50"
             >
               {t.adminBtnLogin}
             </button>
@@ -362,6 +397,11 @@ export default function AdminPortal() {
                               <td className="py-6 px-8 space-y-2">
                                 <h4 className="text-stone-200 font-serif text-base italic flex items-center gap-2">
                                   {res.name}
+                                  {res.type === "event" && (
+                                    <span className="text-[9px] font-sans font-bold uppercase bg-purple-500/10 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded-full">
+                                      {lang === "es" ? "Evento" : "Wydarzenie"}
+                                    </span>
+                                  )}
                                   {res.tableName && (
                                     <span className="text-[9px] font-sans font-normal uppercase bg-gold/10 text-gold border border-gold/20 px-2 py-0.5 rounded-full">
                                       {res.tableName}
@@ -385,7 +425,7 @@ export default function AdminPortal() {
                                   </span>
                                   <span className="flex items-center gap-1.5 bg-stone-900 px-2.5 py-1 text-xs border border-border">
                                     <Clock size={12} className="text-gold" />
-                                    {res.time}
+                                    {res.type === "event" ? t.resEventFullDay : res.time}
                                   </span>
                                   <span className="flex items-center gap-1.5 bg-stone-900 px-2.5 py-1 text-xs border border-border">
                                     <Users size={12} className="text-gold" />
@@ -453,6 +493,11 @@ export default function AdminPortal() {
                             <div className="space-y-1">
                               <h4 className="text-stone-200 font-serif text-base italic flex items-center gap-1.5 flex-wrap">
                                 {res.name}
+                                {res.type === "event" && (
+                                  <span className="text-[9px] font-sans font-bold uppercase bg-purple-500/10 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded-full">
+                                    {lang === "es" ? "Evento" : "Wydarzenie"}
+                                  </span>
+                                )}
                                 {res.tableName && (
                                   <span className="text-[9px] font-sans font-normal uppercase bg-gold/10 text-gold border border-gold/20 px-2 py-0.5 rounded-full">
                                     {res.tableName}
@@ -495,7 +540,7 @@ export default function AdminPortal() {
                             </span>
                             <span className="flex items-center gap-1 bg-stone-900 px-2 py-0.5 border border-border rounded">
                               <Clock size={10} className="text-gold" />
-                              {res.time}
+                              {res.type === "event" ? t.resEventFullDay : res.time}
                             </span>
                             <span className="flex items-center gap-1 bg-stone-900 px-2 py-0.5 border border-border rounded">
                               <Users size={10} className="text-gold" />

@@ -5,6 +5,7 @@ import ReservationForm from "./components/ReservationForm";
 import Reviews from "./components/Reviews";
 import AdminPortal from "./components/AdminPortal";
 import { PrivacyPolicyModal, TermsOfServiceModal } from "./components/LegalModals";
+import CookieBanner from "./components/CookieBanner";
 import { useLanguage } from "./context/LanguageContext";
 import { cn } from "./lib/utils";
 
@@ -294,6 +295,9 @@ export default function App() {
         </nav>
 
         <AdminPortal />
+
+        {/* EU Cookie Consent */}
+        <CookieBanner onShowPrivacy={() => { setShowAdmin(false); setShowPrivacy(true); }} />
       </div>
     );
   }
@@ -683,7 +687,7 @@ export default function App() {
             <div className="flex gap-4 justify-center text-[10px] tracking-[0.4em] uppercase text-stone-600">
               <span className="text-gold">{lang === "es" ? "Mesas" : "Stoliki"}</span>
               <span>{lang === "es" ? "Eventos" : "Wydarzenia"}</span>
-              <span>{lang === "es" ? "Privativo" : "Prwatne"}</span>
+              <span>{lang === "es" ? "Privado" : "Prywatne"}</span>
             </div>
           </div>
           <div className="w-full">
@@ -693,7 +697,7 @@ export default function App() {
       </section>
 
       {/* Footer */}
-      <footer className="py-24 px-12 border-t border-border bg-dark">
+      <footer className="py-16 sm:py-24 px-6 sm:px-12 border-t border-border bg-dark">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-16 lg:gap-24">
           <div className="space-y-8">
              <div className="text-3xl font-serif font-light tracking-[0.2em] uppercase">Rahito</div>
@@ -732,23 +736,23 @@ export default function App() {
           </div>
         </div>
         
-        <div className="max-w-7xl mx-auto pt-24 mt-24 border-t border-border flex flex-col md:flex-row justify-between text-stone-700 text-[9px] uppercase tracking-[0.5em] gap-6">
+        <div className="max-w-7xl mx-auto pt-24 mt-24 border-t border-border flex flex-col md:flex-row justify-between text-stone-700 text-[9px] uppercase tracking-[0.25em] sm:tracking-[0.5em] gap-6">
            <p>{t.footerRights}</p>
-           <div className="flex gap-12 mt-6 md:mt-0">
-             <button 
-               onClick={() => setShowPrivacy(true)} 
+           <div className="flex flex-wrap gap-x-6 gap-y-3 sm:gap-12 mt-6 md:mt-0">
+             <button
+               onClick={() => setShowPrivacy(true)}
                className="hover:text-gold transition-colors cursor-pointer"
              >
                {t.footerPrivacy}
              </button>
-             <button 
-               onClick={() => setShowTerms(true)} 
+             <button
+               onClick={() => setShowTerms(true)}
                className="hover:text-gold transition-colors cursor-pointer"
              >
                {t.footerTerms}
              </button>
-             <button 
-               onClick={() => setShowAdmin(true)} 
+             <button
+               onClick={() => setShowAdmin(true)}
                className="hover:text-gold transition-colors flex items-center gap-1 cursor-pointer"
              >
                <Shield size={10} /> {lang === "es" ? "Acceso Propietario" : "Logowanie Właściciela"}
@@ -763,11 +767,14 @@ export default function App() {
         onClose={() => setShowPrivacy(false)} 
         lang={lang} 
       />
-      <TermsOfServiceModal 
-        isOpen={showTerms} 
-        onClose={() => setShowTerms(false)} 
-        lang={lang} 
+      <TermsOfServiceModal
+        isOpen={showTerms}
+        onClose={() => setShowTerms(false)}
+        lang={lang}
       />
+
+      {/* EU Cookie Consent */}
+      <CookieBanner onShowPrivacy={() => setShowPrivacy(true)} />
     </div>
   );
 }
