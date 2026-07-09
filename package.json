@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "i18n:sync": "tsx scripts/sync-translations.ts",
+    "i18n:check": "tsx scripts/sync-translations.ts --check"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

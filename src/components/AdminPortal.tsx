@@ -102,10 +102,7 @@ export default function AdminPortal() {
       if (result.user?.email === "bove.abt@gmail.com") {
         setIsAuthenticated(true);
       } else {
-        alert(lang === "es" 
-          ? "Este portal es exclusivo para bove.abt@gmail.com. Inicie sesión con la cuenta de propietario." 
-          : "Ten portal jest dedykowany dla bove.abt@gmail.com. Zaloguj się na konto właściciela."
-        );
+        alert(t.adminGoogleOnlyAlert);
         await signOut(auth);
       }
     } catch (err) {
@@ -164,7 +161,7 @@ export default function AdminPortal() {
       });
     } catch (err) {
       console.error("Error updating reservation:", err);
-      alert(lang === "es" ? "Error al guardar asignación de mesa" : "Błąd zapisu przypisania stolika");
+      alert(t.adminSaveTableError);
     }
   };
 
@@ -178,7 +175,7 @@ export default function AdminPortal() {
       });
     } catch (err) {
       console.error("Error updating status:", err);
-      alert(lang === "es" ? "Error al actualizar estado" : "Błąd aktualizacji statusu");
+      alert(t.adminUpdateStatusError);
     }
   };
 
@@ -238,7 +235,7 @@ export default function AdminPortal() {
 
           <div className="relative flex py-4 items-center">
             <div className="flex-grow border-t border-border"></div>
-            <span className="flex-shrink mx-4 text-[9px] uppercase tracking-widest text-stone-600">o</span>
+            <span className="flex-shrink mx-4 text-[9px] uppercase tracking-widest text-stone-600">{t.adminOrSeparator}</span>
             <div className="flex-grow border-t border-border"></div>
           </div>
 
@@ -252,7 +249,7 @@ export default function AdminPortal() {
               <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
               <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
             </svg>
-            Acceder con Google
+            {t.adminGoogleBtn}
           </button>
         </div>
       </div>
@@ -272,7 +269,7 @@ export default function AdminPortal() {
             </div>
             <h1 className="text-4xl md:text-5xl font-serif font-light tracking-tight text-stone-100">Rahito Głogów</h1>
             <p className="text-[10px] text-stone-600 uppercase tracking-widest">
-              Sesión activa {userEmail ? `(${userEmail})` : '(Passphrase Pro)'}
+              {t.adminActiveSessionLabel} {userEmail ? `(${userEmail})` : `(${t.adminPassphraseSessionLabel})`}
             </p>
           </div>
           <button
@@ -315,7 +312,7 @@ export default function AdminPortal() {
                 : "border-transparent text-stone-500 hover:text-stone-300"
             )}
           >
-            📋 {lang === "es" ? "Lista de Reservas" : "Lista Rezerwacji"}
+            📋 {t.adminTabListLabel}
           </button>
           <button
             onClick={() => {
@@ -333,7 +330,7 @@ export default function AdminPortal() {
                 : "border-transparent text-stone-500 hover:text-stone-300"
             )}
           >
-            📐 TableFlow ({lang === "es" ? "Mapa de Mesas" : "Plany Stolików"})
+            📐 TableFlow ({t.adminTabFlowLabel})
           </button>
         </div>
 
@@ -348,7 +345,7 @@ export default function AdminPortal() {
                   onChange={(e) => setSelectedDateFilter(e.target.value)}
                   className="bg-stone-950 border border-border px-4 py-2 text-xs text-stone-300 focus:outline-none focus:border-gold capitalize"
                 >
-                  <option value="">{lang === "es" ? "Todas las Fechas" : "Wszystkie Daty"}</option>
+                  <option value="">{t.adminAllDates}</option>
                   {uniqueDates.map((dateStr) => {
                     const parsedDate = new Date(`${dateStr}T12:00:00`);
                     return (
@@ -363,7 +360,7 @@ export default function AdminPortal() {
                     onClick={() => setSelectedDateFilter("")}
                     className="text-[9px] uppercase tracking-widest text-gold hover:underline"
                   >
-                    {lang === "es" ? "Limpiar filtro" : "Wyczyść filtr"}
+                    {t.adminClearFilter}
                   </button>
                 )}
               </div>
@@ -399,7 +396,7 @@ export default function AdminPortal() {
                                   {res.name}
                                   {res.type === "event" && (
                                     <span className="text-[9px] font-sans font-bold uppercase bg-purple-500/10 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded-full">
-                                      {lang === "es" ? "Evento" : "Wydarzenie"}
+                                      {t.adminBadgeEvent}
                                     </span>
                                   )}
                                   {res.tableName && (
@@ -429,7 +426,7 @@ export default function AdminPortal() {
                                   </span>
                                   <span className="flex items-center gap-1.5 bg-stone-900 px-2.5 py-1 text-xs border border-border">
                                     <Users size={12} className="text-gold" />
-                                    {res.guests} {lang === "es" ? "comensales" : "osób"}
+                                    {res.guests} {t.adminGuestsUnit}
                                   </span>
                                 </div>
                                 <span className="text-[9px] uppercase text-stone-700 tracking-wider block font-mono">Ref ID: {res.id.slice(-8)}</span>
@@ -447,11 +444,11 @@ export default function AdminPortal() {
                                     "w-1 h-1 rounded-full",
                                     res.status === "confirmed" ? "bg-emerald-500" : res.status === "cancelled" ? "bg-rose-500" : "bg-gold"
                                   )} />
-                                  {res.status === "confirmed" 
-                                    ? (lang === "es" ? "Confirmada" : "Potwierdzone")
-                                    : res.status === "cancelled" 
-                                    ? (lang === "es" ? "Cancelada" : "Anulowane") 
-                                    : (lang === "es" ? "Pendiente" : "Oczekujące")}
+                                  {res.status === "confirmed"
+                                    ? t.adminStatusConfirmed
+                                    : res.status === "cancelled"
+                                    ? t.adminStatusCancelled
+                                    : t.adminStatusPending}
                                 </span>
                               </td>
                               <td className="py-6 px-8 text-right">
@@ -495,7 +492,7 @@ export default function AdminPortal() {
                                 {res.name}
                                 {res.type === "event" && (
                                   <span className="text-[9px] font-sans font-bold uppercase bg-purple-500/10 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded-full">
-                                    {lang === "es" ? "Evento" : "Wydarzenie"}
+                                    {t.adminBadgeEvent}
                                   </span>
                                 )}
                                 {res.tableName && (
@@ -525,11 +522,11 @@ export default function AdminPortal() {
                                 "w-1 h-1 rounded-full",
                                 res.status === "confirmed" ? "bg-emerald-500" : res.status === "cancelled" ? "bg-rose-500" : "bg-gold"
                               )} />
-                              {res.status === "confirmed" 
-                                ? (lang === "es" ? "Conf." : "Potw.")
-                                : res.status === "cancelled" 
-                                ? (lang === "es" ? "Can." : "Anul.") 
-                                : (lang === "es" ? "Pend." : "Oczek.")}
+                              {res.status === "confirmed"
+                                ? t.adminStatusConfirmedShort
+                                : res.status === "cancelled"
+                                ? t.adminStatusCancelledShort
+                                : t.adminStatusPendingShort}
                             </span>
                           </div>
 
@@ -544,7 +541,7 @@ export default function AdminPortal() {
                             </span>
                             <span className="flex items-center gap-1 bg-stone-900 px-2 py-0.5 border border-border rounded">
                               <Users size={10} className="text-gold" />
-                              {res.guests} {lang === "es" ? "pers." : "os."}
+                              {res.guests} {t.adminGuestsUnitShort}
                             </span>
                           </div>
 
@@ -557,7 +554,7 @@ export default function AdminPortal() {
                                   className="px-3 py-1.5 border border-border text-stone-400 hover:text-emerald-500 hover:border-emerald-500 transition-all rounded text-[10px] uppercase tracking-widest flex items-center gap-1"
                                 >
                                   <Check size={11} />
-                                  <span>{lang === "es" ? "Confirmar" : "Potwierdź"}</span>
+                                  <span>{t.adminBtnConfirm}</span>
                                 </button>
                               )}
                               {res.status !== "cancelled" && (
@@ -566,7 +563,7 @@ export default function AdminPortal() {
                                   className="px-3 py-1.5 border border-border text-stone-400 hover:text-rose-500 hover:border-rose-500 transition-all rounded text-[10px] uppercase tracking-widest flex items-center gap-1"
                                 >
                                   <X size={11} />
-                                  <span>{lang === "es" ? "Anular" : "Anuluj"}</span>
+                                  <span>{t.adminBtnCancel}</span>
                                 </button>
                               )}
                             </div>

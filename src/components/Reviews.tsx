@@ -38,7 +38,7 @@ export default function Reviews() {
             <div className="relative w-full h-[430px] sm:h-[520px] lg:h-[640px]">
               <iframe
                 src="https://widgets.sociablekit.com/google-reviews/iframe/25694992"
-                title="Reseñas de Google de Rahito"
+                title={t.reviewsIframeTitle}
                 frameBorder="0"
                 loading="lazy"
                 className="absolute inset-0 h-full w-full"

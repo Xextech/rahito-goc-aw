@@ -203,7 +203,7 @@ export default function TableFlow({
     const row = Math.floor(tables.length / 4) % 4;
     const newTable: TableDef = {
       id,
-      name: `${lang === "es" ? "Mesa" : "Stolik"} ${tables.length + 1}`,
+      name: `${t.tfNewTablePrefix} ${tables.length + 1}`,
       seats: 4,
       x: 20 + col * 20,
       y: 20 + row * 20,
@@ -292,10 +292,7 @@ export default function TableFlow({
             <h3 className="text-xl font-serif font-light tracking-wide uppercase italic">TableFlow Setup</h3>
           </div>
           <p className="text-stone-500 text-xs max-w-2xl leading-relaxed">
-            {lang === "es"
-              ? "El restaurante dispone de 5 mesas de 4 personas (20 pax). Las reservas se asignan automáticamente a las mesas; puede reasignarlas, añadir mesas o reorganizar el salón arrastrándolas en modo edición."
-              : "Restauracja dysponuje 5 stolikami po 4 osoby (20 miejsc). Rezerwacje są przypisywane do stolików automatycznie; możesz je zmieniać, dodawać stoliki lub przesuwać je w trybie edycji."
-            }
+            {t.tfIntro}
           </p>
         </div>
 
@@ -309,10 +306,7 @@ export default function TableFlow({
                 : "border-border text-stone-400 hover:text-stone-100 hover:border-stone-600"
             )}
           >
-            {isEditMode
-              ? (lang === "es" ? "🔑 Bloquear Diseño" : "🔑 Zablokuj Układ")
-              : (lang === "es" ? "🛠️ Editar Mesas" : "🛠️ Edytuj Stoliki")
-            }
+            {isEditMode ? t.tfLockLayout : t.tfEditTables}
           </button>
 
           {isEditMode && (
@@ -321,7 +315,7 @@ export default function TableFlow({
               className="px-6 py-3 border border-border bg-stone-900 text-[10px] uppercase tracking-widest text-gold hover:border-gold transition-colors flex items-center gap-2"
             >
               <Plus size={12} />
-              {lang === "es" ? "Añadir Mesa" : "Dodaj Stolik"}
+              {t.tfAddTable}
             </button>
           )}
         </div>
@@ -333,7 +327,7 @@ export default function TableFlow({
           <PartyPopper size={16} className="text-gold shrink-0" />
           <div className="text-xs">
             <span className="text-gold font-bold uppercase tracking-widest text-[10px] block">
-              {lang === "es" ? "Evento Privado — Día Bloqueado" : "Wydarzenie Prywatne — Dzień Zablokowany"}
+              {t.tfEventDayBlockedTitle}
             </span>
             <span className="text-stone-500 font-mono text-[10px]">
               {eventOfDay.name} • {eventOfDay.email} • {eventOfDay.phone}
@@ -345,7 +339,7 @@ export default function TableFlow({
       {/* Date & Time Slot Selector */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-stone-900/10 p-5 border border-border">
         <div className="space-y-1">
-          <div className="text-[10px] uppercase tracking-widest text-stone-600">{t.resDate} {lang === "es" ? "Visualizada" : "Wybrana"}</div>
+          <div className="text-[10px] uppercase tracking-widest text-stone-600">{t.resDate} {t.tfDateViewedSuffix}</div>
           <div className="text-stone-300 font-serif italic text-lg capitalize font-light">
             {format(new Date(`${selectedDate}T12:00:00`), "eeee, d MMMM yyyy", { locale: lang === "es" ? es : pl })}
           </div>
@@ -393,10 +387,10 @@ export default function TableFlow({
         {/* Interactive Floor Map Canvas (Left Column) */}
         <div className="lg:col-span-8 flex flex-col space-y-4">
           <div className="flex justify-between items-center px-2">
-            <span className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-bold">{lang === "es" ? "Distribución del Plano" : "Mapa Sali"}</span>
+            <span className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-bold">{t.tfFloorLayout}</span>
             <div className="flex items-center gap-4 text-[9px] uppercase tracking-widest font-mono text-stone-600">
-               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-500/10 border border-emerald-500/30" /> {lang === "es" ? "Libre" : "Wolny"}</span>
-               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-gold/10 border border-gold/40" /> {lang === "es" ? "Ocupada" : "Zajęty"}</span>
+               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-500/10 border border-emerald-500/30" /> {t.tfFree}</span>
+               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-gold/10 border border-gold/40" /> {t.tfOccupied}</span>
             </div>
           </div>
 
@@ -416,12 +410,12 @@ export default function TableFlow({
           >
             {/* Restaurant Entrance Marker */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-stone-900 border-b border-x border-border font-mono text-[8px] uppercase tracking-[0.3em] px-4 py-1.5 text-stone-600 z-10">
-               {lang === "es" ? "Entrada" : "Wejście"}
+               {t.tfEntrance}
             </div>
 
             {/* Kitchen Indicator */}
             <div className="absolute bottom-0 right-10 bg-stone-900/60 border-t border-x border-border/80 font-mono text-[8px] uppercase tracking-[0.3em] px-4 py-1.5 text-stone-600 z-10">
-               {lang === "es" ? "Cocina" : "Kuchnia"}
+               {t.tfKitchen}
             </div>
 
             {/* Tables Loop */}
@@ -497,9 +491,7 @@ export default function TableFlow({
 
           {isEditMode && (
             <p className="text-[10px] text-yellow-600 italic text-center font-mono">
-              {lang === "es"
-                ? "* Arrastre las mesas dentro de la cuadrícula superior para reorganizar el salón. Las posiciones se guardan automáticamente."
-                : "* Przeciągnij stoliki w powyższej siatce, aby zreorganizować salę. Pozycje zapisują się automatycznie."}
+              {t.tfDragHint}
             </p>
           )}
         </div>
@@ -510,16 +502,16 @@ export default function TableFlow({
           {/* Section: Assign Bookings Section */}
           <div className="border border-border bg-stone-900/10 p-6 space-y-6">
             <h4 className="text-xs uppercase tracking-[0.2em] text-stone-400 font-bold border-b border-border pb-3">
-              {lang === "es" ? "Asignar Reservas" : "Przypisywanie Rezerwacji"}
+              {t.tfAssignReservations}
             </h4>
 
             {/* If there is a selected reservation queue to assign */}
             {selectedResToAssign ? (
               <div className="bg-gold/5 border border-gold/30 p-4 space-y-4">
                  <div className="space-y-1">
-                    <p className="text-[9px] uppercase tracking-widest text-gold font-bold">{lang === "es" ? "Reserva" : "Rezerwacja"}</p>
+                    <p className="text-[9px] uppercase tracking-widest text-gold font-bold">{t.tfReservationLabel}</p>
                     <p className="text-sm font-serif italic text-stone-100">{selectedResToAssign.name}</p>
-                    <p className="text-[10px] text-stone-500 font-mono">{selectedResToAssign.guests} {lang === "es" ? "personas" : "gości"} @ {selectedResToAssign.time}</p>
+                    <p className="text-[10px] text-stone-500 font-mono">{selectedResToAssign.guests} {t.tfPeopleUnit} @ {selectedResToAssign.time}</p>
                  </div>
 
                  <button
@@ -528,12 +520,12 @@ export default function TableFlow({
                    className="w-full py-2.5 bg-gold text-dark text-[10px] uppercase tracking-widest font-bold hover:bg-gold/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                  >
                    <Wand2 size={12} />
-                   {lang === "es" ? "Asignar Automáticamente" : "Przypisz Automatycznie"}
+                   {t.tfAutoAssignBtn}
                  </button>
 
                  <div className="space-y-2 border-t border-border pt-3">
                     <p className="text-[9px] uppercase tracking-widest text-stone-400 leading-snug">
-                      {lang === "es" ? "O elija una mesa manualmente:" : "Lub wybierz stolik ręcznie:"}
+                      {t.tfManualAssignHint}
                     </p>
                     <div className="grid grid-cols-2 gap-2 pt-2">
                        {tables.map(tb => (
@@ -553,24 +545,21 @@ export default function TableFlow({
                    onClick={() => setSelectedResToAssign(null)}
                    className="w-full py-2 border border-stone-800 text-[10px] uppercase tracking-widest text-stone-500 hover:text-stone-300"
                  >
-                   {lang === "es" ? "Cancelar Asignación" : "Anuluj Przypisanie"}
+                   {t.tfCancelAssign}
                  </button>
               </div>
             ) : (
               <div className="space-y-4">
                 <p className="text-[11px] text-stone-500 leading-relaxed font-serif italic">
-                  {lang === "es"
-                    ? `Pendientes de mesa para las ${activeTimeSlot}:`
-                    : `Oczekują na przypisanie stolika o ${activeTimeSlot}:`
-                  }
+                  {t.tfPendingForSlot.replace('{time}', activeTimeSlot)}
                 </p>
 
                 {unassignedBookings.length === 0 ? (
                   <div className="border border-border border-dashed p-6 text-center space-y-1">
                      <Check className="text-emerald-500 mx-auto" size={18} />
-                     <p className="text-[10px] uppercase tracking-widest text-stone-600 font-bold">{lang === "es" ? "Todas sentadas" : "Wszyscy usadzeni"}</p>
+                     <p className="text-[10px] uppercase tracking-widest text-stone-600 font-bold">{t.tfAllSeated}</p>
                      <p className="text-[9px] text-stone-600 font-light italic leading-snug">
-                       {lang === "es" ? "No hay comensales pendientes de mesa en este horario." : "Brak gości oczekujących na stolik o tej godzinie."}
+                       {t.tfNoPending}
                      </p>
                   </div>
                 ) : (
@@ -590,7 +579,7 @@ export default function TableFlow({
                           <button
                             onClick={() => autoAssign(res)}
                             disabled={loading}
-                            title={lang === "es" ? "Asignar automáticamente" : "Przypisz automatycznie"}
+                            title={t.tfAutoAssignTooltip}
                             className="px-2 py-1.5 bg-gold/10 border border-gold/30 text-[9px] uppercase tracking-widest text-gold hover:bg-gold hover:text-dark transition-all font-bold disabled:opacity-50"
                           >
                             <Wand2 size={11} />
@@ -599,7 +588,7 @@ export default function TableFlow({
                             onClick={() => setSelectedResToAssign(res)}
                             className="px-3 py-1.5 bg-stone-900 border border-border text-[9px] uppercase tracking-widest text-gold hover:bg-gold hover:text-dark transition-all font-bold"
                           >
-                            {lang === "es" ? "Sentar" : "Usadź"}
+                            {t.tfSeatBtn}
                           </button>
                         </div>
                       </div>
@@ -621,7 +610,7 @@ export default function TableFlow({
                    <button
                      onClick={() => handleDeleteTable(selectedTable.id)}
                      className="text-stone-700 hover:text-rose-500 transition-colors"
-                     title={lang === "es" ? "Borrar Mesa" : "Usuń Stolik"}
+                     title={t.tfDeleteTableTooltip}
                    >
                      <Trash2 size={12} />
                    </button>
@@ -637,9 +626,7 @@ export default function TableFlow({
                        <div className="bg-stone-950 p-4 border border-border space-y-4">
                          <div className="space-y-1">
                            <span className="text-[8px] bg-gold/10 border border-gold/30 text-gold px-2 py-0.5 uppercase tracking-wider rounded font-mono">
-                             {booking.type === "event"
-                               ? (lang === "es" ? "EVENTO PRIVADO" : "WYDARZENIE")
-                               : (lang === "es" ? "OCUPADA" : "ZAJĘTY")}
+                             {booking.type === "event" ? t.tfBadgeEvent : t.tfBadgeOccupied}
                            </span>
                            <h5 className="text-sm font-serif italic text-stone-200 pt-2">{booking.name}</h5>
                            <p className="text-[10px] text-stone-600 font-mono">{booking.email}</p>
@@ -648,17 +635,17 @@ export default function TableFlow({
 
                          <div className="grid grid-cols-2 gap-4 border-t border-border pt-4">
                             <div>
-                               <span className="text-[8px] uppercase tracking-widest text-stone-600 block">{lang === "es" ? "Capacidad:" : "Pojemność:"}</span>
+                               <span className="text-[8px] uppercase tracking-widest text-stone-600 block">{t.tfCapacityLabel}</span>
                                <span className="text-stone-300 text-xs">{selectedTable.seats} Pax</span>
                             </div>
                             <div>
-                               <span className="text-[8px] uppercase tracking-widest text-stone-600 block">{lang === "es" ? "Comensales:" : "Goście:"}</span>
+                               <span className="text-[8px] uppercase tracking-widest text-stone-600 block">{t.tfGuestsLabel}</span>
                                <span className="text-gold text-xs font-bold">{booking.guests} Pax</span>
                             </div>
                          </div>
 
                          <div>
-                            <span className="text-[8px] uppercase tracking-widest text-stone-600 block">{lang === "es" ? "Franja ocupada:" : "Zajęty przedział:"}</span>
+                            <span className="text-[8px] uppercase tracking-widest text-stone-600 block">{t.tfOccupiedWindowLabel}</span>
                             <span className="text-stone-400 text-[10px] font-mono">
                               {booking.type === "event" ? t.resEventFullDay : `${booking.time} — 2h`}
                             </span>
@@ -669,13 +656,13 @@ export default function TableFlow({
                              onClick={() => unassignTable(booking.id)}
                              className="w-full py-2 bg-rose-950/20 border border-rose-900/40 text-[9px] uppercase tracking-widest text-rose-500 hover:bg-rose-950/40 transition-colors font-bold"
                            >
-                             {lang === "es" ? "Desocupar Mesa" : "Zwolnij Stolik"}
+                             {t.tfFreeTableBtn}
                            </button>
                          )}
                        </div>
                      ) : (
                        <p className="text-[11px] text-stone-500 italic block">
-                         {lang === "es" ? "Mesa libre para este horario de servicio." : "Stolik wolny w tej godzinie."}
+                         {t.tfTableFreeNote}
                        </p>
                      )}
 
@@ -683,7 +670,7 @@ export default function TableFlow({
                      {isEditMode && (
                        <div className="space-y-4 border-t border-border pt-4">
                          <div className="space-y-1 group">
-                           <label className="text-[9px] uppercase tracking-widest text-stone-600">{lang === "es" ? "Nombre de la Mesa" : "Nazwa Stolika"}</label>
+                           <label className="text-[9px] uppercase tracking-widest text-stone-600">{t.tfTableNameLabel}</label>
                            <input
                              type="text"
                              value={selectedTable.name}
@@ -694,7 +681,7 @@ export default function TableFlow({
 
                          <div className="grid grid-cols-2 gap-4">
                            <div className="space-y-1">
-                             <label className="text-[9px] uppercase tracking-widest text-stone-600">{lang === "es" ? "Capacidad" : "Miejsca"}</label>
+                             <label className="text-[9px] uppercase tracking-widest text-stone-600">{t.tfCapacityFieldLabel}</label>
                              <select
                                value={selectedTable.seats}
                                onChange={(e) => handleUpdateTableProp(selectedTable.id, "seats", Number(e.target.value))}
@@ -707,15 +694,15 @@ export default function TableFlow({
                            </div>
 
                            <div className="space-y-1">
-                             <label className="text-[9px] uppercase tracking-widest text-stone-600">{lang === "es" ? "Forma" : "Kształt"}</label>
+                             <label className="text-[9px] uppercase tracking-widest text-stone-600">{t.tfShapeLabel}</label>
                              <select
                                value={selectedTable.shape}
                                onChange={(e) => handleUpdateTableProp(selectedTable.id, "shape", e.target.value)}
                                className="w-full bg-stone-950 border border-border px-3 py-1.5 text-xs text-stone-300 focus:outline-none focus:border-gold transition-colors"
                              >
-                               <option value="round">{lang === "es" ? "Redonda" : "Okrągły"}</option>
-                               <option value="square">{lang === "es" ? "Cuadrada" : "Kwadratowy"}</option>
-                               <option value="counter">{lang === "es" ? "Barra" : "Lada/Bar"}</option>
+                               <option value="round">{t.tfShapeRound}</option>
+                               <option value="square">{t.tfShapeSquare}</option>
+                               <option value="counter">{t.tfShapeCounter}</option>
                              </select>
                            </div>
                          </div>
@@ -728,11 +715,9 @@ export default function TableFlow({
           ) : (
             <div className="border border-border border-dashed p-8 text-center bg-stone-900/5 space-y-2">
               <HelpCircle className="text-stone-700 mx-auto" size={24} />
-              <p className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">{lang === "es" ? "Ninguna Mesa Seleccionada" : "Brak Wybranego Stolika"}</p>
+              <p className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">{t.tfNoTableSelected}</p>
               <p className="text-[9px] text-stone-600 font-light italic leading-relaxed">
-                {lang === "es"
-                  ? "Haga click sobre cualquier mesa en el plano para gestionar su ocupación y configuraciones individuales."
-                  : "Kliknij dowolny stolik na planie, aby zarządzać jego zajętością i ustawieniami."}
+                {t.tfNoTableSelectedHint}
               </p>
             </div>
           )}
