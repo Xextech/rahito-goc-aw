@@ -7,41 +7,167 @@ import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { initializeApp as initializeAdminApp, applicationDefault, App as AdminApp } from "firebase-admin/app";
+import { getFirestore as getAdminFirestore, FieldValue, Firestore as AdminFirestore } from "firebase-admin/firestore";
+import { getAuth as getAdminAuth } from "firebase-admin/auth";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 import fs from "fs";
+import {
+  DEFAULT_TABLES,
+  FULL_RESTAURANT_LABEL,
+  TableDef,
+  ReservationSlot,
+  autoAssignTables,
+  hasFullDayEvent,
+  isActiveReservation,
+} from "./src/lib/reservationUtils";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Initialize Firebase for server-side reservation lookups/cancellations
+// Initialize the public Firebase client SDK — used only for the narrow,
+// intentionally-public operations already scoped tightly by Firestore
+// rules (get-by-id and self-cancellation via a reservation's own link).
 const firebaseConfig = JSON.parse(
   fs.readFileSync(path.join(process.cwd(), "firebase-applet-config.json"), "utf8")
 );
 const firebaseApp = initializeApp(firebaseConfig, "server-app");
 const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 
-async function startServer() {
-  const app = express();
-  const PORT = parseInt(process.env.PORT || "3000");
+// Initialize Firebase Admin (server-only, bypasses Firestore security
+// rules entirely) so personal reservation data is never readable by an
+// unauthenticated client — only by this trusted server process.
+//
+// On Cloud Run this picks up the service's attached identity automatically
+// via Application Default Credentials (no secret to manage). For local
+// development, run `gcloud auth application-default login`, or point
+// GOOGLE_APPLICATION_CREDENTIALS at a service account key file.
+//
+// Credentials are resolved lazily by the underlying gRPC client, so a
+// missing/broken ADC setup does NOT surface as a rejection on the first
+// real request — it can throw as an unhandled rejection at the process
+// level and crash the whole server. To avoid that, we force credential
+// resolution here at startup with a real (tiny) read, inside a try/catch,
+// before any request is ever served.
+let adminDb: AdminFirestore | null = null;
+let adminApp: AdminApp | null = null;
 
-  app.use(express.json());
+async function initAdminFirestore(): Promise<{ db: AdminFirestore; app: AdminApp } | null> {
+  try {
+    const app = initializeAdminApp({
+      credential: applicationDefault(),
+      projectId: firebaseConfig.projectId,
+    });
+    const fsdb = getAdminFirestore(app, firebaseConfig.firestoreDatabaseId);
+    await fsdb.collection("__health__").limit(1).get();
+    console.log("[server] Firebase Admin initialized via Application Default Credentials.");
+    return { db: fsdb, app };
+  } catch (err: any) {
+    console.warn("[server] Firebase Admin NOT initialized — availability/booking/admin-login endpoints will return 503.");
+    console.warn("[server]   Cloud Run: this is automatic via the service's attached identity, no action needed.");
+    console.warn("[server]   Local dev: run `gcloud auth application-default login` once. Reason:", err.message);
+    return null;
+  }
+}
 
-  // API routes
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
-  });
+// Last-resort safety net: a transient Firestore/auth hiccup must never take
+// the whole site down. Log it and keep serving the rest of the app instead
+// of letting Node crash the process on an unhandled rejection.
+process.on("unhandledRejection", (reason) => {
+  console.error("[server] Unhandled rejection (server kept alive):", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[server] Uncaught exception (server kept alive):", err);
+});
 
-  // SMTP Email notification route for bookings (translates to PHPMailer logic in Node)
-  app.post("/api/notify-reservation", async (req, res) => {
-    const { name, email, phone, date, time, guests, bookingRef, tableName, type } = req.body;
-    if (!name || !email || !date || !time || !guests) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-    const isEvent = type === "event";
-    const displayTime = isEvent ? "Día completo (Evento Privado)" : time;
-    const tableRowHtml = tableName
-      ? `<tr style="border-bottom: 1px solid #292524;"><td style="padding: 10px 0; font-weight: bold; color: #d97706; font-size: 13px; text-transform: uppercase;">Mesa:</td><td style="color: #f5f5f4;">${tableName}</td></tr>`
-      : "";
+function requireAdminDb(res: express.Response): AdminFirestore | null {
+  if (!adminDb) {
+    res.status(503).json({ error: "server_not_configured", message: "El servidor no tiene credenciales de Firebase configuradas." });
+    return null;
+  }
+  return adminDb;
+}
 
+function requireAdminApp(res: express.Response): AdminApp | null {
+  if (!adminApp) {
+    res.status(503).json({ error: "server_not_configured", message: "El servidor no tiene credenciales de Firebase configuradas." });
+    return null;
+  }
+  return adminApp;
+}
+
+// ── Validation helpers (defense in depth; Firestore rules also validate) ──
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^\d{2}:\d{2}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^[0-9+\-()\s]{9,20}$/;
+const MAX_ADVANCE_DAYS = 60;
+
+function isValidBookingDate(dateStr: string): boolean {
+  if (!DATE_RE.test(dateStr)) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return false;
+  const diffDays = (target.getTime() - today.getTime()) / 86_400_000;
+  if (diffDays < 0 || diffDays > MAX_ADVANCE_DAYS) return false;
+  if (target.getDay() === 1) return false; // Monday: closed
+  return true;
+}
+
+function buildTimeSlots(): string[] {
+  const slots: string[] = [];
+  for (let h = 8; h <= 22; h++) {
+    const hh = String(h).padStart(2, "0");
+    slots.push(`${hh}:00`);
+    if (h !== 22) slots.push(`${hh}:30`);
+  }
+  return slots;
+}
+const TIME_SLOTS = buildTimeSlots();
+
+async function loadTables(fsdb: AdminFirestore): Promise<TableDef[]> {
+  const ref = fsdb.doc("settings/restaurant_layout");
+  const snap = await ref.get();
+  const data = snap.data();
+  if (snap.exists && Array.isArray(data?.tables) && data!.tables.length > 0) {
+    return data!.tables as TableDef[];
+  }
+  await ref.set({ tables: DEFAULT_TABLES });
+  return DEFAULT_TABLES;
+}
+
+async function loadDayReservations(fsdb: AdminFirestore, date: string): Promise<Array<ReservationSlot & { id: string }>> {
+  const snap = await fsdb.collection("reservations").where("date", "==", date).get();
+  return snap.docs
+    .map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        time: data.time as string,
+        guests: Number(data.guests) || 0,
+        status: (data.status as string) || "confirmed",
+        tableIds: Array.isArray(data.tableIds) ? data.tableIds : undefined,
+        tableId: data.tableId || undefined,
+        type: data.type || "table",
+      };
+    })
+    .filter(isActiveReservation);
+}
+
+function sendReservationEmails(params: {
+  name: string; email: string; phone: string; date: string; time: string; guests: number;
+  bookingRef: string; tableName?: string; type?: string; baseUrl: string;
+}) {
+  const { name, email, phone, date, time, guests, bookingRef, tableName, type, baseUrl } = params;
+  const isEvent = type === "event";
+  const displayTime = isEvent ? "Día completo (Evento Privado)" : time;
+  const tableRowHtml = tableName
+    ? `<tr style="border-bottom: 1px solid #292524;"><td style="padding: 10px 0; font-weight: bold; color: #d97706; font-size: 13px; text-transform: uppercase;">Mesa:</td><td style="color: #f5f5f4;">${tableName}</td></tr>`
+    : "";
+
+  return (async () => {
     try {
       const smtpHost = process.env.SMTP_HOST;
       const smtpPort = parseInt(process.env.SMTP_PORT || "587");
@@ -55,18 +181,13 @@ async function startServer() {
           host: smtpHost,
           port: smtpPort,
           secure: smtpPort === 465,
-          auth: {
-            user: smtpUser,
-            pass: smtpPass,
-          },
+          auth: { user: smtpUser, pass: smtpPass },
         });
       }
 
-      const baseUrl = process.env.APP_URL || `${req.headers["x-forwarded-proto"] || "https"}://${req.get("host")}`;
       const adminUrl = `${baseUrl.replace(/\/$/, "")}/?admin=true`;
       const cancelUrl = `${baseUrl.replace(/\/$/, "")}/api/cancel-reservation?id=${bookingRef}`;
 
-      // 1. Owner's Email (contains admin portal link)
       const ownerSubject = isEvent
         ? `🎉 Nuevo Evento Privado en Rahito Głogów - ${name}`
         : `🍽️ Nueva Reserva en Rahito Głogów - ${name}`;
@@ -86,7 +207,7 @@ ${adminUrl}`;
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; background-color: #0c0b0a; color: #e7e5e4; border: 1px solid #d97706; border-radius: 4px;">
           <h2 style="color: #d97706; font-family: serif; font-style: italic; border-bottom: 1px solid #292524; padding-bottom: 12px; margin-top: 0;">Rahito Głogów</h2>
           <p style="font-size: 14px; line-height: 1.6; color: #a8a29e;">Se ha registrado una nueva reserva exclusiva a través de la web:</p>
-          
+
           <div style="background-color: #1c1917; padding: 15px; border-radius: 4px; margin: 20px 0;">
             <table style="width: 100%; border-collapse: collapse;">
               <tr style="border-bottom: 1px solid #292524;"><td style="padding: 10px 0; font-weight: bold; color: #d97706; width: 35%; font-size: 13px; text-transform: uppercase;">Cliente:</td><td style="color: #f5f5f4;">${name}</td></tr>
@@ -110,7 +231,6 @@ ${adminUrl}`;
         </div>
       `;
 
-      // 2. Client's Email (no admin portal link)
       const clientSubject = `✨ Tu Reserva ha sido Confirmada - Rahito Głogów`;
       const clientText = `¡Hola ${name}!
 
@@ -130,7 +250,7 @@ Si deseas realizar modificaciones o tienes peticiones especiales, por favor pont
           <h2 style="color: #d97706; font-family: serif; font-style: italic; border-bottom: 1px solid #292524; padding-bottom: 12px; margin-top: 0; text-align: center;">Rahito Głogów</h2>
           <p style="font-size: 14px; line-height: 1.6; color: #e7e5e4; text-align: center; font-weight: bold;">¡Tu reserva ha sido confirmada!</p>
           <p style="font-size: 14px; line-height: 1.6; color: #a8a29e; text-align: center;">Hola ${name}, tu mesa está reservada. Nos complace confirmarte los detalles de tu visita:</p>
-          
+
           <div style="background-color: #1c1917; padding: 15px; border-radius: 4px; margin: 20px 0;">
             <table style="width: 100%; border-collapse: collapse;">
               <tr style="border-bottom: 1px solid #292524;"><td style="padding: 10px 0; font-weight: bold; color: #d97706; width: 35%; font-size: 13px; text-transform: uppercase;">Fecha:</td><td style="color: #f5f5f4;">${date}</td></tr>
@@ -142,7 +262,7 @@ Si deseas realizar modificaciones o tienes peticiones especiales, por favor pont
           </div>
 
           <p style="font-size: 13px; line-height: 1.6; color: #a8a29e; text-align: center; margin-top: 25px;">Si necesitas realizar algún cambio o tienes alguna petición especial, ponte en contacto con nosotros.</p>
-          
+
           <div style="text-align: center; margin: 25px 0;">
             <a href="${cancelUrl}" target="_blank" style="background-color: #7f1d1d; color: #fecaca; padding: 12px 24px; text-decoration: none; font-weight: bold; font-family: sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; border-radius: 4px; display: inline-block; border: 1px solid #dc2626;">
               Anular mi Reserva
@@ -154,27 +274,10 @@ Si deseas realizar modificaciones o tienes peticiones especiales, por favor pont
       `;
 
       if (transporter) {
-        // Send email to the Owner
-        await transporter.sendMail({
-          from: `"Portal Rahito" <no-reply@rahito.com>`,
-          to: ownerEmail,
-          subject: ownerSubject,
-          text: ownerText,
-          html: ownerHtml,
-        });
+        await transporter.sendMail({ from: `"Portal Rahito" <no-reply@rahito.com>`, to: ownerEmail, subject: ownerSubject, text: ownerText, html: ownerHtml });
         console.log(`[SMTP] Success: Real booking email dispatched to Owner: ${ownerEmail}`);
-
-        // Send email to the Client
-        await transporter.sendMail({
-          from: `"Rahito Głogów" <no-reply@rahito.com>`,
-          to: email,
-          subject: clientSubject,
-          text: clientText,
-          html: clientHtml,
-        });
+        await transporter.sendMail({ from: `"Rahito Głogów" <no-reply@rahito.com>`, to: email, subject: clientSubject, text: clientText, html: clientHtml });
         console.log(`[SMTP] Success: Real confirmation email dispatched to Client: ${email}`);
-
-        return res.json({ status: "sent", message: "Emails sent successfully" });
       } else {
         console.log(`\n======================================================`);
         console.log(`[SMTP SIMULATION] (Configure SMTP_HOST in .env for real send)`);
@@ -183,17 +286,200 @@ Si deseas realizar modificaciones o tienes peticiones especiales, por favor pont
         console.log(`Subject Owner: ${ownerSubject}`);
         console.log(`Subject Client: ${clientSubject}`);
         console.log(`======================================================\n`);
-        return res.json({ status: "simulated", message: "SMTP simulated successfully in logs" });
       }
     } catch (err: any) {
       console.error("[SMTP Error] Failed to send email:", err);
-      // Fallback so client flow doesn't hang
-      return res.status(200).json({ status: "error", error: err.message, message: "Email triggering failed but booking preserved" });
+    }
+  })();
+}
+
+async function startServer() {
+  const adminInit = await initAdminFirestore();
+  adminDb = adminInit?.db ?? null;
+  adminApp = adminInit?.app ?? null;
+
+  const app = express();
+  const PORT = parseInt(process.env.PORT || "3000");
+
+  // Security headers. CSP is left to the app's own meta tags / build output
+  // since Vite's dev middleware injects inline scripts that a strict CSP
+  // here would break; the other helmet defaults (X-Content-Type-Options,
+  // X-Frame-Options, etc.) still apply.
+  app.use(helmet({ contentSecurityPolicy: false }));
+  app.use(express.json({ limit: "15kb" }));
+
+  // Rate limiting: protects against scripted abuse (calendar spam-filling,
+  // scraping, brute-forcing cancellation links) without needing external
+  // infrastructure. Limits are per-IP.
+  const availabilityLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
+  const bookingLimiter = rateLimit({ windowMs: 60 * 60_000, limit: 8, standardHeaders: true, legacyHeaders: false, message: { error: "rate_limited", message: "Demasiadas reservas desde este origen. Inténtelo de nuevo más tarde." } });
+  const cancelLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 20, standardHeaders: true, legacyHeaders: false });
+  const adminLoginLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 5, standardHeaders: true, legacyHeaders: false, message: { error: "rate_limited", message: "Demasiados intentos. Inténtelo de nuevo más tarde." } });
+  const globalLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false });
+  app.use("/api/", globalLimiter);
+
+  // API routes
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok" });
+  });
+
+  // Public, PII-free availability for the booking calendar. Personal data
+  // (name/email/phone) never leaves the server — only aggregate occupancy
+  // (time, guests, assigned table ids, type) is returned.
+  app.get("/api/availability", availabilityLimiter, async (req, res) => {
+    const fsdb = requireAdminDb(res);
+    if (!fsdb) return;
+
+    const start = String(req.query.start || "");
+    const end = String(req.query.end || "");
+    if (!DATE_RE.test(start) || !DATE_RE.test(end)) {
+      return res.status(400).json({ error: "invalid_range", message: "start/end deben tener formato YYYY-MM-DD" });
+    }
+    const startMs = new Date(`${start}T00:00:00`).getTime();
+    const endMs = new Date(`${end}T00:00:00`).getTime();
+    const spanDays = (endMs - startMs) / 86_400_000;
+    if (!(spanDays >= 0) || spanDays > MAX_ADVANCE_DAYS) {
+      return res.status(400).json({ error: "invalid_range", message: "Rango de fechas inválido" });
+    }
+
+    try {
+      const tables = await loadTables(fsdb);
+      const snap = await fsdb.collection("reservations").where("date", ">=", start).where("date", "<=", end).get();
+      const reservationsByDate: Record<string, Array<{ time: string; guests: number; tableIds: string[]; type: string; status: string }>> = {};
+      snap.docs.forEach((d) => {
+        const data = d.data();
+        if (!isActiveReservation({ status: data.status || "confirmed" })) return;
+        const date = data.date as string;
+        if (!reservationsByDate[date]) reservationsByDate[date] = [];
+        reservationsByDate[date].push({
+          time: data.time,
+          guests: Number(data.guests) || 0,
+          tableIds: Array.isArray(data.tableIds) ? data.tableIds : (data.tableId ? [data.tableId] : []),
+          type: data.type || "table",
+          status: data.status || "confirmed",
+        });
+      });
+      res.json({ tables, reservationsByDate });
+    } catch (err: any) {
+      console.error("[availability] failed:", err);
+      res.status(500).json({ error: "internal_error" });
+    }
+  });
+
+  // Reservation creation: fully server-validated and server-assigned so a
+  // malicious client cannot lie about table availability, bypass the
+  // 2-hour hold, or overbook a private-event day.
+  app.post("/api/reservations", bookingLimiter, async (req, res) => {
+    const fsdb = requireAdminDb(res);
+    if (!fsdb) return;
+
+    const body = req.body || {};
+    const mode = body.mode === "event" ? "event" : "table";
+    const date = String(body.date || "");
+    const name = String(body.name || "").trim().slice(0, 100);
+    const email = String(body.email || "").trim().slice(0, 100);
+    const phone = String(body.phone || "").trim().slice(0, 20);
+    const guests = mode === "event" ? 20 : Math.trunc(Number(body.guests));
+    const time = mode === "event" ? "00:00" : String(body.time || "");
+
+    if (!isValidBookingDate(date)) {
+      return res.status(400).json({ error: "invalid_date", message: "Fecha inválida, cerrada (lunes) o fuera de rango." });
+    }
+    if (name.length < 2 || !EMAIL_RE.test(email) || !PHONE_RE.test(phone)) {
+      return res.status(400).json({ error: "invalid_contact", message: "Datos de contacto inválidos." });
+    }
+    if (mode === "table") {
+      if (!TIME_RE.test(time) || !TIME_SLOTS.includes(time)) {
+        return res.status(400).json({ error: "invalid_time", message: "Hora inválida." });
+      }
+      if (!Number.isInteger(guests) || guests < 1 || guests > 20) {
+        return res.status(400).json({ error: "invalid_guests", message: "Número de comensales inválido." });
+      }
+    }
+
+    try {
+      const tables = await loadTables(fsdb);
+      const dayReservations = await loadDayReservations(fsdb, date);
+
+      let tableIds: string[];
+      let tableName: string;
+
+      if (mode === "event") {
+        if (dayReservations.length > 0) {
+          return res.status(409).json({ error: "day_taken", message: "Ese día ya tiene reservas y no puede bloquearse para un evento." });
+        }
+        tableIds = tables.map((t) => t.id);
+        tableName = FULL_RESTAURANT_LABEL;
+      } else {
+        if (hasFullDayEvent(dayReservations)) {
+          return res.status(409).json({ error: "day_taken", message: "Ese día está bloqueado por un evento privado." });
+        }
+        const assignment = autoAssignTables(dayReservations, tables, time, guests);
+        if (!assignment) {
+          return res.status(409).json({ error: "no_availability", message: "No quedan mesas disponibles para esa hora." });
+        }
+        tableIds = assignment.tableIds;
+        tableName = assignment.tableName;
+      }
+
+      const reservationDoc = {
+        date,
+        time,
+        guests,
+        name,
+        email,
+        phone,
+        status: "confirmed" as const,
+        type: mode,
+        tableId: tableIds[0] || "",
+        tableIds,
+        tableName,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      const ref = await fsdb.collection("reservations").add(reservationDoc);
+
+      const baseUrl = process.env.APP_URL || `${req.headers["x-forwarded-proto"] || "https"}://${req.get("host")}`;
+      await sendReservationEmails({ name, email, phone, date, time, guests, bookingRef: ref.id, tableName, type: mode, baseUrl });
+
+      res.status(201).json({ id: ref.id, date, time, guests, tableName, type: mode });
+    } catch (err: any) {
+      console.error("[reservations] create failed:", err);
+      res.status(500).json({ error: "internal_error" });
+    }
+  });
+
+  // Owner dashboard passphrase login. Verified server-side against
+  // ADMIN_PASSPHRASE (never shipped to the client bundle) and, on success,
+  // mints a real Firebase Auth custom token carrying an `owner` claim so
+  // Firestore security rules can trust the session exactly like a Google
+  // sign-in — the dashboard no longer has any privileged path that bypasses
+  // Firestore rules.
+  app.post("/api/admin/login", adminLoginLimiter, async (req, res) => {
+    const application = requireAdminApp(res);
+    if (!application) return;
+
+    const configured = process.env.ADMIN_PASSPHRASE;
+    const passphrase = String(req.body?.passphrase || "");
+    if (!configured) {
+      return res.status(503).json({ error: "not_configured", message: "El acceso por contraseña no está configurado." });
+    }
+    if (!passphrase || passphrase !== configured) {
+      return res.status(401).json({ error: "invalid_passphrase", message: "Contraseña incorrecta." });
+    }
+
+    try {
+      const token = await getAdminAuth(application).createCustomToken("admin-passphrase", { owner: true });
+      res.json({ token });
+    } catch (err: any) {
+      console.error("[admin/login] failed to mint custom token:", err);
+      res.status(500).json({ error: "internal_error" });
     }
   });
 
   // SMTP cancellation route for customers
-  app.get("/api/cancel-reservation", async (req, res) => {
+  app.get("/api/cancel-reservation", cancelLimiter, async (req, res) => {
     const bookingId = req.query.id as string;
     if (!bookingId) {
       return res.status(400).send("Falta el identificador de la reserva (booking ID).");

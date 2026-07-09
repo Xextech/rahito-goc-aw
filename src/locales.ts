@@ -226,7 +226,7 @@ export const translations: Record<Language, Translation> = {
     adminTabCalendar: "Vista Calendario",
     adminTabList: "Ver Todas",
     cookieTitle: "Cookies y Privacidad",
-    cookieText: "Utilizamos cookies propias y de terceros para el funcionamiento de la web y para mejorar su experiencia, conforme al RGPD de la UE. Puede aceptarlas o rechazarlas.",
+    cookieText: "Utilizamos únicamente almacenamiento técnico propio y estrictamente necesario (su idioma y esta decisión de cookies). No usamos cookies de analítica ni de terceros, conforme al RGPD y la normativa de la UE.",
     cookieAccept: "Aceptar",
     cookieReject: "Rechazar",
     cookieMore: "Política de Privacidad"
@@ -296,7 +296,7 @@ export const translations: Record<Language, Translation> = {
     fieldPersonalTitle: "Dane Osobowe",
     footerTagline: "Najbardziej kameralna restauracja w Głogowie.",
     footerLocation: "Lokalizacja",
-    footerAddress: "Stawna 8, 67-200 Głogów, Polonia",
+    footerAddress: "Stawna 8, 67-200 Głogów, Polska",
     footerHours: "Godziny Otwarcia",
     footerHoursWeekdays: "Pon - Pt: 08:00 - 20:00 / Pt-Sob: 08:00 - 22:00",
     footerHoursWeekends: "",
@@ -331,7 +331,7 @@ export const translations: Record<Language, Translation> = {
     adminTabCalendar: "Widok Kalendarza",
     adminTabList: "Wszystkie Rezerwacje",
     cookieTitle: "Pliki Cookie i Prywatność",
-    cookieText: "Używamy własnych plików cookie oraz plików podmiotów trzecich w celu prawidłowego działania strony i poprawy Twoich doświadczeń, zgodnie z RODO. Możesz je zaakceptować lub odrzucić.",
+    cookieText: "Korzystamy wyłącznie z niezbędnego przechowywania lokalnego (Twój język i ta decyzja dotycząca cookies). Nie używamy plików analitycznych ani podmiotów trzecich, zgodnie z RODO i przepisami UE.",
     cookieAccept: "Akceptuję",
     cookieReject: "Odrzucam",
     cookieMore: "Polityka Prywatności"

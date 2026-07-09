@@ -4,7 +4,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import ReservationForm from "./ReservationForm";
 import { LanguageProvider } from "../context/LanguageContext";
 
-// Mock Firebase
 vi.mock("motion/react", () => ({
   motion: {
     div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
@@ -19,50 +18,37 @@ vi.mock("motion/react", () => ({
   useTransform: () => ({}),
 }));
 
-vi.mock("firebase/app", () => ({
-  initializeApp: vi.fn(() => ({})),
-}));
-
-vi.mock("firebase/auth", () => ({
-  getAuth: vi.fn(() => ({
-    onAuthStateChanged: vi.fn((cb) => {
-      cb(null);
-      return vi.fn();
-    }),
-  })),
-}));
-
-const mockAddDoc = vi.fn(() => Promise.resolve({ id: "mock-booking-id-12345" }));
-vi.mock("firebase/firestore", () => ({
-  getFirestore: vi.fn(() => ({})),
-  collection: vi.fn(() => ({})),
-  addDoc: () => mockAddDoc(),
-  serverTimestamp: vi.fn(() => new Date()),
-  query: vi.fn(() => ({})),
-  where: vi.fn(() => ({})),
-  doc: vi.fn(() => ({})),
-  getDoc: vi.fn(() => Promise.resolve({ exists: () => false, data: () => null })),
-  onSnapshot: vi.fn((q, cb) => {
-    cb({ docs: [] });
-    return () => {};
-  }),
-}));
-
-// Mock globally configured fetch API
-const mockFetch = vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ status: "ok" }) }));
+// ReservationForm now talks to the server exclusively via fetch — no
+// direct Firestore access from the browser (availability + booking are
+// both server-mediated to keep personal data off the client).
+const mockPostResult = { id: "mock-booking-id-12345", date: "2026-07-10", time: "19:00", guests: 2, tableName: "Mesa 1", type: "table" };
+const mockFetch = vi.fn((url: string, init?: RequestInit) => {
+  if (typeof url === "string" && url.startsWith("/api/availability")) {
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ tables: [], reservationsByDate: {} }),
+    } as any);
+  }
+  if (typeof url === "string" && url.startsWith("/api/reservations") && init?.method === "POST") {
+    return Promise.resolve({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve(mockPostResult),
+    } as any);
+  }
+  return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) } as any);
+});
 global.fetch = mockFetch as any;
 
-describe("ReservationForm GDPR Consent and Booking Flow", () => {
+describe("ReservationForm Booking Flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  const renderWithLanguage = (lang: "es" | "pl" = "es") => {
+  const renderWithLanguage = () => {
     return render(
       <LanguageProvider>
-        {/* We can set the document/language context helper or mock it,
-            but since context uses standard navigator/locale defaults, 
-            let's just render the component which uses Context */}
         <ReservationForm />
       </LanguageProvider>
     );
@@ -70,10 +56,9 @@ describe("ReservationForm GDPR Consent and Booking Flow", () => {
 
   it("renders Step 1 with date, time slot, and guest selection", () => {
     renderWithLanguage();
-    
-    // Look for heading "Selección de Calendario" or equivalent in active language
-    expect(screen.getByText(/Calendario/i) || screen.getByText(/Wybór/i)).toBeInTheDocument();
-    
+
+    expect(screen.getByText(/Calendario|Wybór/i)).toBeInTheDocument();
+
     // Proceed button is disabled because no time slot is selected yet
     const proceedBtn = screen.getByRole("button", { name: /Continuar|Przejdź/i });
     expect(proceedBtn).toBeDisabled();
@@ -81,46 +66,42 @@ describe("ReservationForm GDPR Consent and Booking Flow", () => {
 
   it("enables proceed button when a time slot is selected and transitions to Step 2", () => {
     renderWithLanguage();
-    
-    // Select a time slot
+
     const timeSlotBtn = screen.getByText("19:00");
     fireEvent.click(timeSlotBtn);
-    
+
     const proceedBtn = screen.getByRole("button", { name: /Continuar|Przejdź/i });
     expect(proceedBtn).toBeEnabled();
-    
-    // Click proceed
+
     fireEvent.click(proceedBtn);
-    
-    // We should now be in Step 2, looking for "Detalles Personales" or "Dane Osobowe"
+
     expect(screen.getByText(/Personales|Osobowe/i)).toBeInTheDocument();
   });
 
-  it("shows GDPR checkbox on Step 2 and validates it before submission", async () => {
+  it("submits the booking to POST /api/reservations and shows confirmation", async () => {
     renderWithLanguage();
-    
-    // Select time slot and proceed to Step 2
+
     fireEvent.click(screen.getByText("19:00"));
     fireEvent.click(screen.getByRole("button", { name: /Continuar|Przejdź/i }));
 
-    // Input personal details - labels are not linked with 'for', select inputs by role
     const textboxes = screen.getAllByRole('textbox');
-    const nameInput = textboxes[0];
-    const emailInput = textboxes[1];
-    const phoneInput = textboxes[2];
-
-    fireEvent.change(nameInput, { target: { value: "Juan Pérez" } });
-    fireEvent.change(emailInput, { target: { value: "juan@example.com" } });
-    fireEvent.change(phoneInput, { target: { value: "123456789" } });
+    fireEvent.change(textboxes[0], { target: { value: "Juan Pérez" } });
+    fireEvent.change(textboxes[1], { target: { value: "juan@example.com" } });
+    fireEvent.change(textboxes[2], { target: { value: "123456789" } });
 
     const submitBtn = screen.getByRole("button", { name: /Finalizar|Zatwierdź/i });
-    
-    // Submit the form (component no longer renders a GDPR checkbox in this build)
     fireEvent.click(submitBtn);
 
-    // Verify mock Firebase addDoc is triggered after form validation
     await waitFor(() => {
-      expect(mockAddDoc).toHaveBeenCalled();
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/reservations",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+
+    // Server-provided booking reference is shown, never data the client invented
+    await waitFor(() => {
+      expect(screen.getByText(/12345/)).toBeInTheDocument();
     });
   });
 });

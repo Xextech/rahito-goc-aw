@@ -6,10 +6,6 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -20,6 +16,16 @@ service cloud.firestore {
 
     function existing() {
       return resource.data;
+    }
+
+    // True for a Google sign-in as the owner's personal account, OR a
+    // Firebase Auth custom-token session minted by the server after it
+    // verified the dashboard passphrase (see /api/admin/login). Both are
+    // real Firebase Auth sessions — the dashboard has no path that
+    // bypasses these rules.
+    function isOwner() {
+      return request.auth != null &&
+        (request.auth.token.email == "bove.abt@gmail.com" || request.auth.token.owner == true);
     }
 
     function isValidReservation(data) {
@@ -41,39 +47,48 @@ service cloud.firestore {
     }
 
     match /reservations/{reservationId} {
-      allow create: if isValidReservation(incoming());
+      // Reservations are created exclusively by the trusted server
+      // (Firebase Admin, /api/reservations), which validates real
+      // availability, the 2-hour table hold and event-day exclusivity
+      // before writing. The client can no longer create a reservation
+      // document directly, so it cannot bypass any of that logic.
+      allow create: if false;
 
-      allow get: if true; // Allow checking reservation status by ID
+      // A customer can look up their own booking by the random ID from
+      // their confirmation email/cancel link (no `list`, so this cannot
+      // be used to enumerate reservations).
+      allow get: if true;
 
-      // The public booking form needs occupancy data (date/time/guests/tables)
-      // to compute real availability per table and per 2-hour window.
-      allow list: if true;
+      // Only the owner (Google sign-in or passphrase-authenticated
+      // session) may list reservations. The public site never needs this:
+      // availability is served pre-aggregated and PII-free by the server.
+      allow list: if isOwner();
 
       allow update: if (
-        // Self-cancellation by customer
+        // Self-cancellation by the customer via their own link
         (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
          && incoming().status == 'cancelled'
          && incoming().updatedAt == request.time) ||
-        // Authorized action internally (by owner via Google Auth or passphrase)
-        (incoming().updatedAt == request.time
+        // Owner: confirm/cancel + (re)assign a table from the dashboard
+        (isOwner()
+        && incoming().updatedAt == request.time
         && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'tableId', 'tableIds', 'tableName']))
       );
     }
 
-    // Global restaurant table layout (seeded with 5 tables of 4 seats).
-    // Read by the public booking form; written from the owner dashboard,
-    // which may be unlocked via passphrase (no Firebase Auth session),
-    // so writes are validated structurally instead of by identity.
+    // Restaurant table layout (seeded with 5 tables of 4 seats). Only the
+    // owner dashboard reads/writes it directly; the public booking form
+    // gets tables from the server's /api/availability response instead.
     match /settings/restaurant_layout {
-      allow read: if true;
-      allow write: if incoming().keys().hasOnly(['tables'])
+      allow read: if isOwner();
+      allow write: if isOwner()
+        && incoming().keys().hasOnly(['tables'])
         && incoming().tables is list
         && incoming().tables.size() <= 30;
     }
 
     match /settings/{settingId} {
-      allow read: if true;
-      allow write: if request.auth != null && request.auth.token.email == "bove.abt@gmail.com";
+      allow read, write: if isOwner();
     }
   }
 }

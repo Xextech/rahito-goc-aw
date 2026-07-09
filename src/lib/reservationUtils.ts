@@ -42,9 +42,17 @@ export function timeToMinutes(time: string): number {
   return (h || 0) * 60 + (m || 0);
 }
 
-/** Dos reservas chocan en la misma mesa si sus franjas de 2h se solapan. */
-export function overlapsWindow(a: string, b: string, durationMin = RESERVATION_DURATION_MIN): boolean {
-  return Math.abs(timeToMinutes(a) - timeToMinutes(b)) < durationMin;
+/**
+ * Una mesa ocupada por una reserva que empieza a `existingTime` permanece
+ * bloqueada durante los `durationMin` (2h) siguientes. La franja se
+ * bloquea únicamente hacia ADELANTE: una reserva a las 21:00 no impide
+ * reservar la misma mesa a las 19:00 (esa reserva anterior ya habría
+ * liberado la mesa antes de las 21:00).
+ */
+export function blocksSlot(existingTime: string, candidateTime: string, durationMin = RESERVATION_DURATION_MIN): boolean {
+  const existing = timeToMinutes(existingTime);
+  const candidate = timeToMinutes(candidateTime);
+  return candidate >= existing && candidate < existing + durationMin;
 }
 
 export function isActiveReservation(r: { status: string }): boolean {
@@ -79,7 +87,7 @@ export function getOccupiedTableIds(
       tables.forEach((t) => occupied.add(t.id));
       continue;
     }
-    if (!overlapsWindow(r.time, time)) continue;
+    if (!blocksSlot(r.time, time)) continue;
     if (r.guests >= FULL_SINGLE_THRESHOLD) {
       tables.forEach((t) => occupied.add(t.id));
       continue;
@@ -140,7 +148,7 @@ export function autoAssignTables(
     (r) =>
       r.type !== "event" &&
       r.guests < FULL_SINGLE_THRESHOLD &&
-      overlapsWindow(r.time, time) &&
+      blocksSlot(r.time, time) &&
       getReservationTableIds(r).length === 0
   );
   for (const r of unassignedOverlapping) {
@@ -244,6 +252,6 @@ export default {
   hasFullDayEvent,
   getOccupiedTableIds,
   getReservationTableIds,
-  overlapsWindow,
+  blocksSlot,
   timeToMinutes,
 };

@@ -1,15 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { format, addDays, startOfToday, isSameDay } from "date-fns";
 import { es, pl } from "date-fns/locale";
-import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
-import { db } from "../lib/firebase";
 import { cn } from "../lib/utils";
 import {
   DEFAULT_TABLES,
-  FULL_RESTAURANT_LABEL,
   TableDef,
   ReservationSlot,
-  autoAssignTables,
   computeDisabledSlotsForParty,
   hasFullDayEvent,
   isActiveReservation,
@@ -18,6 +14,10 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { Calendar as CalendarIcon, Users, Clock, CheckCircle2, AlertCircle, Utensils, PartyPopper } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
+
+// Refresh window to poll availability while the form is open, so a slot
+// taken by another visitor a few minutes ago disappears without a reload.
+const AVAILABILITY_POLL_MS = 45_000;
 
 // Generate half-hour slots from 08:00 to 22:00
 const TIME_SLOTS: string[] = [];
@@ -46,56 +46,38 @@ export default function ReservationForm() {
   const [bookingRef, setBookingRef] = useState<string | null>(null);
   const [assignedTable, setAssignedTable] = useState<string | null>(null);
 
-  // Reservas activas por fecha para calcular disponibilidad real por mesas
+  // Disponibilidad agregada (SIN datos personales) servida por el backend.
+  // El navegador nunca lee la colección de reservas directamente: solo
+  // recibe ocupación (hora, comensales, mesas, tipo) por fecha.
   const [dayReservations, setDayReservations] = useState<Record<string, ReservationSlot[]>>({});
-  // Plano de mesas del restaurante (Firestore, con 5 mesas de 4 por defecto)
   const [tables, setTables] = useState<TableDef[]>(DEFAULT_TABLES);
+  const [availabilityError, setAvailabilityError] = useState(false);
 
   const activeLocale = lang === "es" ? es : pl;
   const availableDates = Array.from({ length: 14 }, (_, i) => addDays(startOfToday(), i + 1));
 
-  // Load the restaurant table layout (owner may add tables in the dashboard)
-  useEffect(() => {
-    getDoc(doc(db, "settings", "restaurant_layout"))
-      .then((snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          if (data && Array.isArray(data.tables) && data.tables.length > 0) {
-            setTables(data.tables);
-          }
-        }
-      })
-      .catch((err) => console.warn("layout load failed, using defaults", err));
-  }, []);
-
-  // Listen to reservations for the next 14 days
-  useEffect(() => {
+  const fetchAvailability = useCallback(async () => {
     const start = format(availableDates[0], "yyyy-MM-dd");
     const end = format(availableDates[availableDates.length - 1], "yyyy-MM-dd");
-    const q = query(collection(db, "reservations"), where("date", ">=", start), where("date", "<=", end));
-    const unsub = onSnapshot(q, (snap) => {
-      const map: Record<string, ReservationSlot[]> = {};
-      snap.docs.forEach((d) => {
-        const data: any = d.data();
-        if (!data || !data.date || !data.time) return;
-        const dateKey = data.date as string;
-        if (!map[dateKey]) map[dateKey] = [];
-        map[dateKey].push({
-          time: data.time as string,
-          guests: Number(data.guests) || 0,
-          status: (data.status as string) || "confirmed",
-          tableIds: Array.isArray(data.tableIds) ? data.tableIds : undefined,
-          tableId: data.tableId || undefined,
-          type: data.type || "table",
-        });
-      });
-      setDayReservations(map);
-    }, (err) => {
-      console.warn('reservations listener error', err);
-      setDayReservations({});
-    });
-    return () => unsub();
+    try {
+      const res = await fetch(`/api/availability?start=${start}&end=${end}`);
+      if (!res.ok) throw new Error(`availability ${res.status}`);
+      const data = await res.json();
+      if (Array.isArray(data.tables) && data.tables.length > 0) setTables(data.tables);
+      setDayReservations(data.reservationsByDate || {});
+      setAvailabilityError(false);
+    } catch (err) {
+      console.warn("availability fetch failed", err);
+      setAvailabilityError(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    fetchAvailability();
+    const interval = setInterval(fetchAvailability, AVAILABILITY_POLL_MS);
+    return () => clearInterval(interval);
+  }, [fetchAvailability]);
 
   const getDayRes = (d: Date): ReservationSlot[] => dayReservations[format(d, "yyyy-MM-dd")] || [];
 
@@ -129,87 +111,46 @@ export default function ReservationForm() {
     setError(null);
 
     const dateStr = format(date, "yyyy-MM-dd");
-    const dayRes = dayReservations[dateStr] || [];
-
-    let reservation: Record<string, any>;
-
-    if (mode === "event") {
-      // Evento privado: restaurante completo, día bloqueado
-      if (dayRes.some(isActiveReservation)) {
-        setError(t.resEventDayTaken);
-        setLoading(false);
-        return;
-      }
-      reservation = {
-        date: dateStr,
-        time: "00:00",
-        guests: 20,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        status: "confirmed",
-        type: "event",
-        tableIds: tables.map((tb) => tb.id),
-        tableName: FULL_RESTAURANT_LABEL,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-    } else {
-      // Asignación automática de mesa(s) con franja de 2 horas
-      const assignment = autoAssignTables(dayRes, tables, time, guests);
-      if (!assignment) {
-        setError(t.resNoAvailability);
-        setLoading(false);
-        return;
-      }
-      reservation = {
-        date: dateStr,
-        time,
-        guests,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        status: "confirmed",
-        type: "table",
-        tableIds: assignment.tableIds,
-        tableId: assignment.tableIds[0],
-        tableName: assignment.tableName,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-    }
 
     try {
-      // 1. Store the booking securely in Firebase Firestore
-      const docRef = await addDoc(collection(db, "reservations"), reservation);
-      const generatedId = docRef.id;
-      setBookingRef(generatedId);
-      setAssignedTable(reservation.tableName || null);
+      // The server re-validates and re-assigns everything authoritatively
+      // (real availability, 2h hold, event-day exclusivity) — the client
+      // never decides table assignment, only submits the request.
+      const res = await fetch("/api/reservations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode,
+          date: dateStr,
+          time: mode === "event" ? undefined : time,
+          guests: mode === "event" ? undefined : guests,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+        }),
+      });
 
-      // 2. Dispatch a secure Node server-side POST request to notify the owner
-      try {
-        await fetch("/api/notify-reservation", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone,
-            date: dateStr,
-            time: reservation.time,
-            guests: reservation.guests,
-            bookingRef: generatedId,
-            tableName: reservation.tableName,
-            type: reservation.type,
-          }),
-        });
-      } catch (notifyErr) {
-        console.warn("Notification server api failed, but booking was saved to DB:", notifyErr);
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        if (data.error === "day_taken") {
+          setError(mode === "event" ? t.resEventDayTaken : t.resNoAvailability);
+        } else if (data.error === "no_availability") {
+          setError(t.resNoAvailability);
+        } else if (res.status === 429) {
+          setError(lang === "es" ? "Demasiados intentos. Espere unos minutos e inténtelo de nuevo." : "Zbyt wiele prób. Odczekaj kilka minut i spróbuj ponownie.");
+        } else {
+          setError(lang === "es" ? "Error al registrar la reserva. Inténtelo de nuevo." : "Nie udało się zarezerwować stolika. Spróbuj ponownie później.");
+        }
+        // Refresh availability: someone else may have just taken the slot.
+        fetchAvailability();
+        return;
       }
 
+      setBookingRef(data.id);
+      setAssignedTable(data.tableName || null);
       setStep(3);
+      fetchAvailability();
     } catch (err: any) {
       console.error(err);
       setError(lang === "es" ? "Error al registrar la reserva. Inténtelo de nuevo." : "Nie udało się zarezerwować stolika. Spróbuj ponownie później.");
@@ -307,6 +248,13 @@ export default function ReservationForm() {
                   <span className="text-gold">{t.resAvailable}</span>
                 </div>
               </div>
+
+              {availabilityError && (
+                <div className="text-rose-500/80 text-[10px] uppercase tracking-widest bg-rose-500/5 p-4 border border-rose-500/20 italic flex items-center gap-2">
+                  <AlertCircle size={14} />
+                  <span>{lang === "es" ? "No se pudo cargar la disponibilidad. Actualice la página." : "Nie udało się wczytać dostępności. Odśwież stronę."}</span>
+                </div>
+              )}
 
               <div className="space-y-6">
                 <div className="grid grid-cols-7 gap-1">

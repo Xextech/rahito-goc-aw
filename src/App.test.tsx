@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import App from "./App";
 import { PrivacyPolicyModal } from "./components/LegalModals";
 import { LanguageProvider } from "./context/LanguageContext";
@@ -49,7 +49,11 @@ vi.mock("firebase/firestore", () => ({
 }));
 
 describe("App Layout and Navigation", () => {
-  it("renders website banner and header brand text", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("renders website banner and header brand text in Polish by default", () => {
     render(
       <LanguageProvider>
         <App />
@@ -58,36 +62,35 @@ describe("App Layout and Navigation", () => {
 
     // Verify main brand name is present
     expect(screen.getAllByText("RAHITO")[0]).toBeInTheDocument();
-    
-    // Verify navigation links are present
-    expect(screen.getAllByText(/Menú/i)[0]).toBeInTheDocument();
-    expect(screen.getAllByText(/Visión/i)[0]).toBeInTheDocument();
-    expect(screen.getAllByText(/Opiniones/i)[0]).toBeInTheDocument();
+
+    // Rahito operates in Głogów, Poland — Polish is the default language.
+    expect(screen.getAllByText(/Menu/i)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/Wizja/i)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/Opinie/i)[0]).toBeInTheDocument();
   });
 
-  it("can switch languages from Spanish to Polish and vice versa", () => {
+  it("can switch languages from Polish to Spanish and vice versa", () => {
     render(
       <LanguageProvider>
         <App />
       </LanguageProvider>
     );
 
-    // Click PL language button in header (active language switcher buttons display "ES" and "PL")
-    const plButtons = screen.getAllByRole("button", { name: "PL" });
-    // Use first PL button in header
-    fireEvent.click(plButtons[0]);
+    // Click ES language button in header (active language switcher buttons display "ES" and "PL")
+    const esButtonsFirst = screen.getAllByRole("button", { name: "ES" });
+    fireEvent.click(esButtonsFirst[0]);
 
-    // Verify language changed to Polish (e.g. "MENÚ" -> "MENU", "OPINIONES" -> "OPINIE")
-    expect(screen.getAllByText(/Menu/i)[0]).toBeInTheDocument();
-    expect(screen.getAllByText(/Opinie/i)[0]).toBeInTheDocument();
-
-    // Switch back to Spanish
-    const esButtons = screen.getAllByRole("button", { name: "ES" });
-    fireEvent.click(esButtons[0]);
-
-    // Verify Spanish translations are restored
+    // Verify language changed to Spanish
     expect(screen.getAllByText(/Menú/i)[0]).toBeInTheDocument();
     expect(screen.getAllByText(/Opiniones/i)[0]).toBeInTheDocument();
+
+    // Switch back to Polish
+    const plButtons = screen.getAllByRole("button", { name: "PL" });
+    fireEvent.click(plButtons[0]);
+
+    // Verify Polish translations are restored
+    expect(screen.getAllByText(/Menu/i)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/Opinie/i)[0]).toBeInTheDocument();
   });
 
   it("opens legal modals when clicking privacy policy link in footer", () => {

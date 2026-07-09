@@ -13,7 +13,7 @@ import {
   getReservationTableIds,
   hasFullDayEvent,
   isActiveReservation,
-  overlapsWindow,
+  blocksSlot,
 } from "../lib/reservationUtils";
 
 interface Reservation {
@@ -105,7 +105,7 @@ export default function TableFlow({
 
   // Reservations holding a table during the active slot (2-hour window)
   const currentReservations = dateReservations.filter(
-    (r) => r.type !== "event" && r.status === "confirmed" && overlapsWindow(r.time, activeTimeSlot)
+    (r) => r.type !== "event" && r.status === "confirmed" && blocksSlot(r.time, activeTimeSlot)
   );
 
   // Unassigned bookings starting exactly at the selected slot

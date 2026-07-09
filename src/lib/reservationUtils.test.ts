@@ -58,7 +58,7 @@ describe('autoAssignTables', () => {
     expect(result!.tableName).toContain('+');
   });
 
-  it('does not reuse a table within the 2-hour window', () => {
+  it('does not reuse a table within the 2-hour window after its reservation', () => {
     const existing: ReservationSlot[] = [
       { time: '19:00', guests: 4, status: 'confirmed', tableIds: ['mesa_1'] },
     ];
@@ -71,7 +71,7 @@ describe('autoAssignTables', () => {
     expect(at2100).not.toBeNull();
   });
 
-  it('blocks earlier overlapping slots too (window works both directions)', () => {
+  it('only blocks forward: a table booked at 19:00 stays available earlier the same day', () => {
     const existing: ReservationSlot[] = [
       { time: '19:00', guests: 4, status: 'confirmed', tableIds: ['mesa_1'] },
       { time: '19:00', guests: 4, status: 'confirmed', tableIds: ['mesa_2'] },
@@ -79,10 +79,13 @@ describe('autoAssignTables', () => {
       { time: '19:00', guests: 4, status: 'confirmed', tableIds: ['mesa_4'] },
       { time: '19:00', guests: 4, status: 'confirmed', tableIds: ['mesa_5'] },
     ];
-    // 17:30 overlaps the 19:00 bookings (17:30-19:30 window)
-    expect(autoAssignTables(existing, DEFAULT_TABLES, '17:30', 2)).toBeNull();
-    // 17:00 does not overlap (ends exactly at 19:00)
+    // Earlier slots (17:00, 17:30) are NOT blocked by a later 19:00 booking:
+    // the 2-hour hold only projects forward from a reservation's start time.
+    expect(autoAssignTables(existing, DEFAULT_TABLES, '17:30', 2)).not.toBeNull();
     expect(autoAssignTables(existing, DEFAULT_TABLES, '17:00', 2)).not.toBeNull();
+    // 19:00 itself, and anything up to (but excluding) 21:00, stays blocked.
+    expect(autoAssignTables(existing, DEFAULT_TABLES, '19:00', 2)).toBeNull();
+    expect(autoAssignTables(existing, DEFAULT_TABLES, '20:30', 2)).toBeNull();
   });
 
   it('a party of 10+ takes the whole restaurant and blocks remaining tables', () => {
@@ -145,7 +148,9 @@ describe('computeDisabledSlotsForParty / isDayFullyBooked', () => {
       { time: '19:00', guests: 12, status: 'confirmed', tableIds: DEFAULT_TABLES.map(t => t.id) },
     ];
     const disabled = computeDisabledSlotsForParty(existing, DEFAULT_TABLES, timeSlots, 2);
-    expect(disabled.has('18:00')).toBe(true); // 18:00-20:00 overlaps the 19:00 booking
+    // Forward-only: slots before the 19:00 booking remain free.
+    expect(disabled.has('18:00')).toBe(false);
+    expect(disabled.has('18:30')).toBe(false);
     expect(disabled.has('19:00')).toBe(true);
     expect(disabled.has('20:30')).toBe(true);
     expect(disabled.has('21:00')).toBe(false);
