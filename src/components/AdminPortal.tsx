@@ -30,6 +30,7 @@ export default function AdminPortal() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passphrase, setPassphrase] = useState("");
   const [passphraseError, setPassphraseError] = useState(false);
+  const [passphraseErrorMsg, setPassphraseErrorMsg] = useState<string | null>(null);
   const [passphraseLoading, setPassphraseLoading] = useState(false);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [selectedDateFilter, setSelectedDateFilter] = useState<string>("");
@@ -72,6 +73,7 @@ export default function AdminPortal() {
     e.preventDefault();
     setPassphraseLoading(true);
     setPassphraseError(false);
+    setPassphraseErrorMsg(null);
     try {
       const res = await fetch("/api/admin/login", {
         method: "POST",
@@ -79,7 +81,12 @@ export default function AdminPortal() {
         body: JSON.stringify({ passphrase }),
       });
       if (!res.ok) {
+        // Distinguish a genuinely wrong passphrase (401) from a server that
+        // isn't ready yet (503) so the owner isn't misled into thinking the
+        // password is wrong when the real issue is server configuration.
+        const data = await res.json().catch(() => ({} as any));
         setPassphraseError(true);
+        setPassphraseErrorMsg(res.status === 401 ? null : (data?.message || null));
         return;
       }
       const { token } = await res.json();
@@ -220,7 +227,7 @@ export default function AdminPortal() {
                 className="w-full bg-stone-900 border border-border py-4 px-4 text-stone-200 focus:outline-none focus:border-gold transition-all font-mono text-center text-sm"
               />
               {passphraseError && (
-                <p className="text-xs text-rose-500 font-light italic mt-1 text-center">{t.adminInvalidPassword}</p>
+                <p className="text-xs text-rose-500 font-light italic mt-1 text-center">{passphraseErrorMsg || t.adminInvalidPassword}</p>
               )}
             </div>
 

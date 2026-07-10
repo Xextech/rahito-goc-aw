@@ -52,22 +52,44 @@ const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 // before any request is ever served.
 let adminDb: AdminFirestore | null = null;
 let adminApp: AdminApp | null = null;
+// The Admin app object is created once and reused; only the Firestore
+// connectivity check ("did the read succeed?") is retried. Retrying
+// initializeApp() would throw "app already exists".
+let adminAppInstance: AdminApp | null = null;
+let lastInitAttempt = 0;
+const INIT_RETRY_COOLDOWN_MS = 15_000;
 
-async function initAdminFirestore(): Promise<{ db: AdminFirestore; app: AdminApp } | null> {
+// Attempts to (re)establish the Firestore connection. Safe to call on every
+// request: if it already succeeded it's a no-op, and if it previously failed
+// it retries at most once every INIT_RETRY_COOLDOWN_MS. This means that once
+// the Cloud Run service account is granted Firestore access (or the API is
+// enabled), the running container heals itself within ~15s — no redeploy
+// needed.
+async function ensureAdminFirestore(): Promise<boolean> {
+  if (adminDb) return true;
+
+  const now = Date.now();
+  if (now - lastInitAttempt < INIT_RETRY_COOLDOWN_MS) return false;
+  lastInitAttempt = now;
+
   try {
-    const app = initializeAdminApp({
-      credential: applicationDefault(),
-      projectId: firebaseConfig.projectId,
-    });
-    const fsdb = getAdminFirestore(app, firebaseConfig.firestoreDatabaseId);
+    if (!adminAppInstance) {
+      adminAppInstance = initializeAdminApp({
+        credential: applicationDefault(),
+        projectId: firebaseConfig.projectId,
+      });
+    }
+    const fsdb = getAdminFirestore(adminAppInstance, firebaseConfig.firestoreDatabaseId);
     await fsdb.collection("__health__").limit(1).get();
+    adminDb = fsdb;
+    adminApp = adminAppInstance;
     console.log("[server] Firebase Admin initialized via Application Default Credentials.");
-    return { db: fsdb, app };
+    return true;
   } catch (err: any) {
-    console.warn("[server] Firebase Admin NOT initialized — availability/booking/admin-login endpoints will return 503.");
-    console.warn("[server]   Cloud Run: this is automatic via the service's attached identity, no action needed.");
-    console.warn("[server]   Local dev: run `gcloud auth application-default login` once. Reason:", err.message);
-    return null;
+    console.warn("[server] Firebase Admin NOT ready — availability/booking/admin-login endpoints return 503. Will retry on the next request.");
+    console.warn("[server]   Common causes: Firestore API disabled, or the Cloud Run service account lacks 'roles/datastore.user'.");
+    console.warn("[server]   Reason:", err?.message || err);
+    return false;
   }
 }
 
@@ -81,17 +103,19 @@ process.on("uncaughtException", (err) => {
   console.error("[server] Uncaught exception (server kept alive):", err);
 });
 
-function requireAdminDb(res: express.Response): AdminFirestore | null {
+async function requireAdminDb(res: express.Response): Promise<AdminFirestore | null> {
+  await ensureAdminFirestore();
   if (!adminDb) {
-    res.status(503).json({ error: "server_not_configured", message: "El servidor no tiene credenciales de Firebase configuradas." });
+    res.status(503).json({ error: "server_not_configured", message: "El servidor aún no puede conectar con la base de datos. Inténtelo de nuevo en unos segundos." });
     return null;
   }
   return adminDb;
 }
 
-function requireAdminApp(res: express.Response): AdminApp | null {
+async function requireAdminApp(res: express.Response): Promise<AdminApp | null> {
+  await ensureAdminFirestore();
   if (!adminApp) {
-    res.status(503).json({ error: "server_not_configured", message: "El servidor no tiene credenciales de Firebase configuradas." });
+    res.status(503).json({ error: "server_not_configured", message: "El servidor aún no puede conectar con la base de datos. Inténtelo de nuevo en unos segundos." });
     return null;
   }
   return adminApp;
@@ -294,9 +318,10 @@ Si deseas realizar modificaciones o tienes peticiones especiales, por favor pont
 }
 
 async function startServer() {
-  const adminInit = await initAdminFirestore();
-  adminDb = adminInit?.db ?? null;
-  adminApp = adminInit?.app ?? null;
+  // Best-effort first attempt at startup. If it fails (e.g. permissions not
+  // yet granted), each incoming request will retry via ensureAdminFirestore,
+  // so the container self-heals without a redeploy.
+  await ensureAdminFirestore();
 
   const app = express();
   const PORT = parseInt(process.env.PORT || "3000");
@@ -338,7 +363,7 @@ async function startServer() {
   // (name/email/phone) never leaves the server — only aggregate occupancy
   // (time, guests, assigned table ids, type) is returned.
   app.get("/api/availability", availabilityLimiter, async (req, res) => {
-    const fsdb = requireAdminDb(res);
+    const fsdb = await requireAdminDb(res);
     if (!fsdb) return;
 
     const start = String(req.query.start || "");
@@ -381,7 +406,7 @@ async function startServer() {
   // malicious client cannot lie about table availability, bypass the
   // 2-hour hold, or overbook a private-event day.
   app.post("/api/reservations", bookingLimiter, async (req, res) => {
-    const fsdb = requireAdminDb(res);
+    const fsdb = await requireAdminDb(res);
     if (!fsdb) return;
 
     const body = req.body || {};
@@ -468,24 +493,38 @@ async function startServer() {
   // sign-in — the dashboard no longer has any privileged path that bypasses
   // Firestore rules.
   app.post("/api/admin/login", adminLoginLimiter, async (req, res) => {
-    const application = requireAdminApp(res);
-    if (!application) return;
-
+    // Validate the passphrase FIRST, before touching Firebase, so a wrong
+    // password always returns a clear 401 (and is never masked by an
+    // unrelated server/database problem).
     const configured = process.env.ADMIN_PASSPHRASE;
     const passphrase = String(req.body?.passphrase || "");
     if (!configured) {
-      return res.status(503).json({ error: "not_configured", message: "El acceso por contraseña no está configurado." });
+      return res.status(503).json({ error: "not_configured", message: "El acceso por contraseña no está configurado en el servidor (falta ADMIN_PASSPHRASE)." });
     }
     if (!passphrase || passphrase !== configured) {
       return res.status(401).json({ error: "invalid_passphrase", message: "Contraseña incorrecta." });
     }
 
+    // Passphrase is correct — now we need the Admin app to mint a token.
+    const application = await requireAdminApp(res);
+    if (!application) return;
+
     try {
       const token = await getAdminAuth(application).createCustomToken("admin-passphrase", { owner: true });
       res.json({ token });
     } catch (err: any) {
-      console.error("[admin/login] failed to mint custom token:", err);
-      res.status(500).json({ error: "internal_error" });
+      // Minting a custom token requires the runtime service account to be
+      // able to sign (iam.serviceAccounts.signBlob), i.e. the
+      // "Service Account Token Creator" role on itself. This is a separate
+      // grant from Firestore access, so surface it clearly.
+      console.error("[admin/login] failed to mint custom token:", err?.message || err);
+      const needsSignPermission = /signBlob|iam\.serviceAccounts|permission/i.test(err?.message || "");
+      res.status(needsSignPermission ? 503 : 500).json({
+        error: needsSignPermission ? "token_signing_unavailable" : "internal_error",
+        message: needsSignPermission
+          ? "El servidor no puede firmar el token de sesión (falta el rol 'Service Account Token Creator')."
+          : "Error interno al iniciar sesión.",
+      });
     }
   });
 
