@@ -116,9 +116,14 @@ async function main() {
     const payload: LocaleData = {};
     pendingKeys.forEach((k) => { payload[k] = sourceData[k]; });
 
+    // `gemini-flash-latest` is a rolling alias that always resolves to a
+    // current stable Flash model, so this script keeps working as Google
+    // rotates specific model versions in and out. Override with the
+    // GEMINI_MODEL env var if you ever need a specific pinned model.
+    const model = process.env.GEMINI_MODEL || "gemini-flash-latest";
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model,
       contents: buildPrompt(LANG_NAMES[source], LANG_NAMES[target], payload),
       config: { responseMimeType: "application/json", temperature: 0.2 },
     });
