@@ -1,10 +1,10 @@
 {
-  "projectId": "dotted-reference-4cf5x",
-  "appId": "1:533707789705:web:6efd3b0b31f1df6ded7d58",
-  "apiKey": "AIzaSyACI8W1B9DkwZEY_CSB-px4zL3TGLZ3VSw",
-  "authDomain": "dotted-reference-4cf5x.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-1ef201a0-b4b7-4448-b294-458260bb1f6a",
-  "storageBucket": "dotted-reference-4cf5x.firebasestorage.app",
-  "messagingSenderId": "533707789705",
+  "projectId": "rahito-restaurant",
+  "appId": "1:216497785991:web:f6506a0a3fbce357b6bc22",
+  "apiKey": "AIzaSyCofNmS0q3ob0vodcRa3NDrh8Cf3IMWDHI",
+  "authDomain": "rahito-restaurant.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "rahito-restaurant.firebasestorage.app",
+  "messagingSenderId": "216497785991",
   "measurementId": ""
 }
