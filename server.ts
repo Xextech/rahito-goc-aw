@@ -355,7 +355,7 @@ async function startServer() {
   const availabilityLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
   const bookingLimiter = rateLimit({ windowMs: 60 * 60_000, limit: 8, standardHeaders: true, legacyHeaders: false, message: { error: "rate_limited", message: "Demasiadas reservas desde este origen. Inténtelo de nuevo más tarde." } });
   const cancelLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 20, standardHeaders: true, legacyHeaders: false });
-  const adminLoginLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 5, standardHeaders: true, legacyHeaders: false, message: { error: "rate_limited", message: "Demasiados intentos. Inténtelo de nuevo más tarde." } });
+  const adminLoginLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 100, standardHeaders: true, legacyHeaders: false, message: { error: "rate_limited", message: "Demasiados intentos. Inténtelo de nuevo más tarde." } });
   const globalLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false });
   app.use("/api/", globalLimiter);
 
