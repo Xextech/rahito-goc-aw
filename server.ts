@@ -80,7 +80,7 @@ async function ensureAdminFirestore(): Promise<boolean> {
       });
     }
     const fsdb = getAdminFirestore(adminAppInstance, firebaseConfig.firestoreDatabaseId);
-    await fsdb.collection("__health__").limit(1).get();
+    await fsdb.collection("health_check").limit(1).get();
     adminDb = fsdb;
     adminApp = adminAppInstance;
     console.log("[server] Firebase Admin initialized via Application Default Credentials.");
