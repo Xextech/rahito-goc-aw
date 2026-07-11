@@ -535,12 +535,15 @@ async function startServer() {
       return res.status(400).send("Falta el identificador de la reserva (booking ID).");
     }
 
+    const fsdb = await requireAdminDb(res);
+    if (!fsdb) return;
+
     try {
       // 1. Fetch the reservation from Firestore
-      const docRef = doc(db, "reservations", bookingId);
-      const docSnap = await getDoc(docRef);
+      const docRef = fsdb.collection("reservations").doc(bookingId);
+      const docSnap = await docRef.get();
 
-      if (!docSnap.exists()) {
+      if (!docSnap.exists) {
         return res.status(404).send(`
           <!DOCTYPE html>
           <html lang="es">
@@ -569,7 +572,7 @@ async function startServer() {
         `);
       }
 
-      const data = docSnap.data();
+      const data = docSnap.data()!;
       const { name, email, phone, date, time, guests, status } = data;
 
       if (status === "cancelled") {
@@ -602,9 +605,9 @@ async function startServer() {
       }
 
       // 2. Update status to 'cancelled' in Firestore
-      await updateDoc(docRef, {
+      await docRef.update({
         status: "cancelled",
-        updatedAt: serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
 
       // 3. Send notification emails to both Client and Owner
