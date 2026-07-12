@@ -10,6 +10,7 @@ import {
   hasFullDayEvent,
   isActiveReservation,
   isDayFullyBooked,
+  blocksSlot,
 } from "../lib/reservationUtils";
 import { motion, AnimatePresence } from "motion/react";
 import { Calendar as CalendarIcon, Users, Clock, CheckCircle2, AlertCircle, Utensils, PartyPopper } from "lucide-react";
@@ -314,6 +315,8 @@ export default function ReservationForm() {
 
                       return TIME_SLOTS.map((t_slot) => {
                         const disabled = disabledSlots.has(t_slot);
+                        const hasDirect = dayRes.some((r) => r.time === t_slot && isActiveReservation(r));
+                        const isUnderHold = dayRes.some((r) => r.time !== t_slot && isActiveReservation(r) && blocksSlot(r.time, t_slot));
 
                         return (
                           <button
@@ -326,10 +329,24 @@ export default function ReservationForm() {
                                 ? "bg-stone-800 text-stone-600 border-border pointer-events-none opacity-80"
                                 : time === t_slot
                                   ? "bg-gold text-dark border-gold font-bold"
-                                  : "bg-dark text-stone-500 border-border hover:border-gold hover:text-stone-300"
+                                  : isUnderHold
+                                    ? "bg-stone-950/40 text-amber-500/80 border-amber-950/30 hover:border-gold hover:text-stone-300"
+                                    : "bg-dark text-stone-500 border-border hover:border-gold hover:text-stone-300"
                             )}
+                            title={
+                              hasDirect 
+                                ? (lang === "es" ? "Esta hora tiene reservas activas" : "Ta godzina ma aktywne rezerwacje")
+                                : isUnderHold
+                                ? (lang === "es" ? "Hora afectada por reserva previa (ventana de 2h)" : "Godzina objęta rezerwacją (okno 2h)")
+                                : undefined
+                            }
                           >
-                            <span className="relative z-10">{t_slot}</span>
+                            <span className="relative z-10 flex items-center justify-center gap-1">
+                              {t_slot}
+                              {hasDirect && !disabled && (
+                                <span className={cn("w-1.5 h-1.5 rounded-full inline-block", time === t_slot ? "bg-dark" : "bg-gold")} />
+                              )}
+                            </span>
                             {disabled && (
                               <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none">
                                 <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(135deg, rgba(0,0,0,0.45) 0 50%, rgba(255,255,255,0.02) 50%)' }} />
