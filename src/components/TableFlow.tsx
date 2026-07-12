@@ -345,7 +345,7 @@ export default function TableFlow({
           </div>
         </div>
 
-          <div className="flex items-center gap-3 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
+        <div className="flex items-center gap-3 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
           <span className="text-[10px] uppercase tracking-widest text-stone-500 mr-2 flex-shrink-0">{t.resTime}:</span>
           <div className="flex gap-1.5 overflow-x-auto max-w-lg">
             {(() => {
@@ -356,26 +356,57 @@ export default function TableFlow({
                   .map(r => r.time)
               );
 
-              return TIME_SLOTS.filter((s, idx) => idx % 2 === 0).map((slot) => (
-              <button
-                key={slot}
-                onClick={() => {
-                  setActiveTimeSlot(slot);
-                  setSelectedResToAssign(null);
-                }}
-                className={cn(
-                  "relative px-3 py-1.5 text-[10px] tracking-widest border transition-all rounded font-mono",
-                  activeTimeSlot === slot
-                    ? "bg-gold text-dark border-gold font-bold"
-                    : "bg-stone-950 text-stone-500 border-border hover:border-stone-700"
-                )}
-              >
-                {slot}
-                {slotsWithBookings.has(slot) && activeTimeSlot !== slot && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-gold" />
-                )}
-              </button>
-              ));
+              return TIME_SLOTS.map((slot) => {
+                const bookingsInSlot = dateReservations.filter(
+                  (r) => r.type !== "event" && r.status === "confirmed" && blocksSlot(r.time, slot)
+                );
+                
+                const hasDirectBooking = slotsWithBookings.has(slot);
+                const isBlocked = bookingsInSlot.length > 0;
+                
+                // Get set of table IDs occupied during this slot
+                const occupiedTableIds = new Set(
+                  bookingsInSlot.flatMap(getReservationTableIds)
+                );
+                
+                const isFullyOccupied = !!eventOfDay || occupiedTableIds.size >= tables.length;
+                const isSelected = activeTimeSlot === slot;
+
+                return (
+                  <button
+                    key={slot}
+                    onClick={() => {
+                      setActiveTimeSlot(slot);
+                      setSelectedResToAssign(null);
+                    }}
+                    className={cn(
+                      "relative px-3 py-1.5 text-[10px] tracking-widest border transition-all rounded font-mono flex items-center justify-center gap-1.5 shrink-0",
+                      isSelected
+                        ? "bg-gold text-dark border-gold font-bold"
+                        : isFullyOccupied
+                        ? "bg-rose-950/20 text-rose-500/60 border-rose-950/60 line-through cursor-pointer hover:border-rose-500"
+                        : isBlocked
+                        ? "bg-amber-950/10 text-amber-500 border-amber-800/40 hover:border-amber-500"
+                        : "bg-stone-950 text-stone-500 border-border hover:border-stone-700"
+                    )}
+                    title={
+                      isFullyOccupied
+                        ? (lang === "es" ? "Completo / Bloqueado" : "Pełny / Zablokowany")
+                        : isBlocked
+                        ? (lang === "es" ? "Ocupación parcial" : "Częściowe obłożenie")
+                        : (lang === "es" ? "Libre" : "Wolny")
+                    }
+                  >
+                    {slot}
+                    {hasDirectBooking && (
+                      <span className={cn(
+                        "w-1.5 h-1.5 rounded-full",
+                        isSelected ? "bg-dark" : "bg-gold"
+                      )} />
+                    )}
+                  </button>
+                );
+              });
             })()}
           </div>
         </div>
