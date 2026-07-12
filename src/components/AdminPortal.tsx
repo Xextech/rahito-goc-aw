@@ -33,7 +33,8 @@ export default function AdminPortal() {
   const [passphraseErrorMsg, setPassphraseErrorMsg] = useState<string | null>(null);
   const [passphraseLoading, setPassphraseLoading] = useState(false);
   const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [selectedDateFilter, setSelectedDateFilter] = useState<string>("");
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [activeTab, setActiveTab] = useState<"list" | "tableflow">("list");
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
@@ -186,12 +187,16 @@ export default function AdminPortal() {
     }
   };
 
-  // Stats Counters
+  // Stats Counters (Calculated for the currently selected date if filtered)
+  const dayReservations = selectedDateFilter
+    ? reservations.filter((r) => r.date === selectedDateFilter)
+    : reservations;
+
   const stats = {
-    total: reservations.length,
-    pending: reservations.filter((r) => r.status === "pending").length,
-    confirmed: reservations.filter((r) => r.status === "confirmed").length,
-    cancelled: reservations.filter((r) => r.status === "cancelled").length,
+    total: dayReservations.length,
+    pending: dayReservations.filter((r) => r.status === "pending").length,
+    confirmed: dayReservations.filter((r) => r.status === "confirmed").length,
+    cancelled: dayReservations.filter((r) => r.status === "cancelled").length,
   };
 
   // Filter list
@@ -201,6 +206,57 @@ export default function AdminPortal() {
 
   // Unique list of dates with reservations for the filter dropdown
   const uniqueDates = Array.from(new Set(reservations.map((r) => r.date))).sort();
+
+  // Helper to change selectedDateFilter by offset (e.g. -1 day, +1 day)
+  const handleDateOffset = (offset: number) => {
+    const currentDate = selectedDateFilter ? new Date(`${selectedDateFilter}T12:00:00`) : new Date();
+    const nextDate = new Date(currentDate.getTime() + offset * 24 * 60 * 60 * 1000);
+    const nextDateStr = format(nextDate, "yyyy-MM-dd");
+    setSelectedDateFilter(nextDateStr);
+    setCalendarMonth(nextDate);
+  };
+
+  // Helper to generate calendar days for the mini-calendar grid
+  const getCalendarDays = () => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const startOffset = (firstDay.getDay() + 6) % 7; // Monday = 0
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells = [];
+
+    // Fill in previous month trailing days
+    const prevMonthDays = new Date(year, month, 0).getDate();
+    for (let i = startOffset - 1; i >= 0; i--) {
+      cells.push({
+        day: prevMonthDays - i,
+        isCurrentMonth: false,
+        date: new Date(year, month - 1, prevMonthDays - i),
+      });
+    }
+
+    // Fill in current month days
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push({
+        day: d,
+        isCurrentMonth: true,
+        date: new Date(year, month, d),
+      });
+    }
+
+    // Fill in next month leading days to complete grid
+    const totalCells = Math.ceil(cells.length / 7) * 7;
+    const nextMonthDaysNeeded = totalCells - cells.length;
+    for (let d = 1; d <= nextMonthDaysNeeded; d++) {
+      cells.push({
+        day: d,
+        isCurrentMonth: false,
+        date: new Date(year, month + 1, d),
+      });
+    }
+
+    return cells;
+  };
 
   if (!isAuthenticated) {
     return (
@@ -288,70 +344,214 @@ export default function AdminPortal() {
           </button>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div className="border border-border p-6 bg-stone-900/10 space-y-3">
-            <p className="text-[10px] uppercase tracking-widest text-stone-600">{t.adminHeaderStatTotal}</p>
-            <p className="text-4xl font-serif text-stone-300 font-light">{stats.total}</p>
-          </div>
-          <div className="border border-border p-6 bg-stone-900/10 space-y-3">
-            <p className="text-[10px] uppercase tracking-widest text-yellow-600">{t.adminHeaderStatPending}</p>
-            <p className="text-4xl font-serif text-gold font-light">{stats.pending}</p>
-          </div>
-          <div className="border border-border p-6 bg-stone-900/10 space-y-3">
-            <p className="text-[10px] uppercase tracking-widest text-emerald-600">{t.adminHeaderStatConfirmed}</p>
-            <p className="text-4xl font-serif text-emerald-500 font-light">{stats.confirmed}</p>
-          </div>
-          <div className="border border-border p-6 bg-stone-900/10 space-y-3">
-            <p className="text-[10px] uppercase tracking-widest text-rose-600">{t.adminHeaderStatCancelled}</p>
-            <p className="text-4xl font-serif text-rose-500 font-light">{stats.cancelled}</p>
-          </div>
-        </div>
+        <div className="flex flex-col lg:flex-row gap-10 items-start">
+          
+          {/* Left Column: Mini Calendar & Date Navigation */}
+          <div className="w-full lg:w-80 shrink-0 space-y-6">
+            <div className="border border-border p-6 bg-stone-950/60 space-y-6">
+              <div className="flex justify-between items-center pb-4 border-b border-border">
+                <h3 className="font-serif text-sm tracking-widest uppercase text-gold">
+                  {lang === "es" ? "Calendario de Ocupación" : "Kalendarz obłożenia"}
+                </h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}
+                    className="p-1 hover:text-gold transition-colors text-xs"
+                  >
+                    ◀
+                  </button>
+                  <span className="text-xs font-mono font-bold capitalize">
+                    {lang === "es"
+                      ? ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][calendarMonth.getMonth()]
+                      : ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"][calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
+                  </span>
+                  <button
+                    onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}
+                    className="p-1 hover:text-gold transition-colors text-xs"
+                  >
+                    ▶
+                  </button>
+                </div>
+              </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-border gap-6">
-          <button
-            onClick={() => setActiveTab("list")}
-            className={cn(
-              "pb-4 text-xs font-serif uppercase tracking-widest font-bold border-b-2 transition-all flex items-center gap-2",
-              activeTab === "list"
-                ? "border-gold text-gold"
-                : "border-transparent text-stone-500 hover:text-stone-300"
-            )}
-          >
-            📋 {t.adminTabListLabel}
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab("tableflow");
-              // TableFlow requires a reference date. If none is filtered, default to today or first available
-              if (!selectedDateFilter) {
-                const todayStr = format(new Date(), "yyyy-MM-dd");
-                setSelectedDateFilter(uniqueDates.includes(todayStr) ? todayStr : (uniqueDates[0] || todayStr));
-              }
-            }}
-            className={cn(
-              "pb-4 text-xs font-serif uppercase tracking-widest font-bold border-b-2 transition-all flex items-center gap-2",
-              activeTab === "tableflow"
-                ? "border-gold text-gold"
-                : "border-transparent text-stone-500 hover:text-stone-300"
-            )}
-          >
-            📐 TableFlow ({t.adminTabFlowLabel})
-          </button>
-        </div>
+              {/* Weekday headers */}
+              <div className="grid grid-cols-7 gap-1 text-center">
+                {(lang === "es" ? ["L", "M", "X", "J", "V", "S", "D"] : ["P", "W", "Ś", "C", "P", "S", "N"]).map((day) => (
+                  <div key={day} className="text-[9px] text-stone-600 font-bold uppercase py-1">
+                    {day}
+                  </div>
+                ))}
+                
+                {/* Calendar Days */}
+                {getCalendarDays().map((cell, idx) => {
+                  const dateStr = format(cell.date, "yyyy-MM-dd");
+                  const isSelected = selectedDateFilter === dateStr;
+                  const dayBookings = reservations.filter((r) => r.date === dateStr && r.status !== "cancelled");
+                  const hasPrivateEvent = dayBookings.some((r) => r.type === "event");
+                  const totalGuests = dayBookings.reduce((sum, r) => sum + r.guests, 0);
 
-        {activeTab === "list" ? (
-          <div className="space-y-8">
-            {/* Filters and View Toggles */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-stone-900/20 p-6 border border-border">
-              <div className="flex items-center gap-4 flex-wrap">
-                <span className="text-[10px] uppercase tracking-widest text-stone-500">{t.navReviews} / {t.resDate}:</span>
-                <select
-                  value={selectedDateFilter}
-                  onChange={(e) => setSelectedDateFilter(e.target.value)}
-                  className="bg-stone-950 border border-border px-4 py-2 text-xs text-stone-300 focus:outline-none focus:border-gold capitalize"
+                  // Dot color determination
+                  let dotColorClass = "";
+                  if (hasPrivateEvent) {
+                    dotColorClass = "bg-purple-500";
+                  } else if (dayBookings.length >= 6 || totalGuests >= 20) {
+                    dotColorClass = "bg-rose-500";
+                  } else if (dayBookings.length >= 3) {
+                    dotColorClass = "bg-amber-500";
+                  } else if (dayBookings.length > 0) {
+                    dotColorClass = "bg-emerald-500";
+                  }
+
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setSelectedDateFilter(dateStr);
+                        setCalendarMonth(cell.date);
+                      }}
+                      className={cn(
+                        "aspect-square text-xs transition-all relative flex flex-col items-center justify-center border",
+                        cell.isCurrentMonth
+                          ? isSelected
+                            ? "border-gold text-gold font-bold bg-gold/10"
+                            : "border-transparent text-stone-400 hover:border-gold/50"
+                          : "border-transparent text-stone-700 hover:border-gold/30 opacity-40"
+                      )}
+                    >
+                      <span>{cell.day}</span>
+                      {dotColorClass && (
+                        <span className={cn("w-1 h-1 rounded-full absolute bottom-1", dotColorClass)} />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Legend */}
+              <div className="flex flex-wrap gap-x-3 gap-y-1.5 pt-4 border-t border-border text-[9px] uppercase tracking-wider text-stone-500 justify-center">
+                <div className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {lang === "es" ? "Bajo" : "Niski"}</div>
+                <div className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> {lang === "es" ? "Medio" : "Średni"}</div>
+                <div className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> {lang === "es" ? "Alto" : "Wysoki"}</div>
+                <div className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-purple-500" /> {lang === "es" ? "Evento" : "Wydarzenie"}</div>
+              </div>
+            </div>
+
+            {/* Date Display and Offset Buttons */}
+            <div className="border border-border p-6 bg-stone-950/40 space-y-4">
+              <div className="text-center space-y-1">
+                <p className="text-[10px] uppercase tracking-widest text-stone-500">
+                  {lang === "es" ? "Fecha Seleccionada" : "Wybrana data"}
+                </p>
+                <p className="font-serif text-base italic text-stone-200 capitalize">
+                  {selectedDateFilter 
+                    ? format(new Date(`${selectedDateFilter}T12:00:00`), "eeee, d 'de' MMMM", { locale: activeLocale })
+                    : (lang === "es" ? "Ninguna" : "Brak")}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleDateOffset(-1)}
+                  className="flex-1 py-2 border border-border text-xs hover:border-gold hover:text-gold transition-all"
+                  title={lang === "es" ? "Día Anterior" : "Poprzedni día"}
                 >
+                  ◀
+                </button>
+                <button
+                  onClick={() => {
+                    const todayStr = format(new Date(), "yyyy-MM-dd");
+                    setSelectedDateFilter(todayStr);
+                    setCalendarMonth(new Date());
+                  }}
+                  className="px-4 py-2 border border-gold bg-gold/5 text-gold text-[10px] uppercase tracking-widest font-bold hover:bg-gold hover:text-dark transition-all"
+                >
+                  {lang === "es" ? "Hoy" : "Dziś"}
+                </button>
+                <button
+                  onClick={() => handleDateOffset(1)}
+                  className="flex-1 py-2 border border-border text-xs hover:border-gold hover:text-gold transition-all"
+                  title={lang === "es" ? "Día Siguiente" : "Następny día"}
+                >
+                  ▶
+                </button>
+              </div>
+              <div className="pt-2 border-t border-border flex justify-between items-center">
+                <button
+                  onClick={() => setSelectedDateFilter("")}
+                  className="text-[9px] uppercase tracking-widest text-stone-500 hover:text-gold transition-colors mx-auto"
+                >
+                  {lang === "es" ? "📁 Ver todas las fechas" : "📁 Pokaż wszystkie daty"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Dashboard Stats & Lists */}
+          <div className="flex-1 w-full space-y-10">
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className="border border-border p-6 bg-stone-900/10 space-y-3">
+                <p className="text-[10px] uppercase tracking-widest text-stone-600">{t.adminHeaderStatTotal}</p>
+                <p className="text-4xl font-serif text-stone-300 font-light">{stats.total}</p>
+              </div>
+              <div className="border border-border p-6 bg-stone-900/10 space-y-3">
+                <p className="text-[10px] uppercase tracking-widest text-yellow-600">{t.adminHeaderStatPending}</p>
+                <p className="text-4xl font-serif text-gold font-light">{stats.pending}</p>
+              </div>
+              <div className="border border-border p-6 bg-stone-900/10 space-y-3">
+                <p className="text-[10px] uppercase tracking-widest text-emerald-600">{t.adminHeaderStatConfirmed}</p>
+                <p className="text-4xl font-serif text-emerald-500 font-light">{stats.confirmed}</p>
+              </div>
+              <div className="border border-border p-6 bg-stone-900/10 space-y-3">
+                <p className="text-[10px] uppercase tracking-widest text-rose-600">{t.adminHeaderStatCancelled}</p>
+                <p className="text-4xl font-serif text-rose-500 font-light">{stats.cancelled}</p>
+              </div>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div className="flex border-b border-border gap-6">
+              <button
+                onClick={() => setActiveTab("list")}
+                className={cn(
+                  "pb-4 text-xs font-serif uppercase tracking-widest font-bold border-b-2 transition-all flex items-center gap-2",
+                  activeTab === "list"
+                    ? "border-gold text-gold"
+                    : "border-transparent text-stone-500 hover:text-stone-300"
+                )}
+              >
+                📋 {t.adminTabListLabel}
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab("tableflow");
+                  // TableFlow requires a reference date. If none is filtered, default to today
+                  if (!selectedDateFilter) {
+                    const todayStr = format(new Date(), "yyyy-MM-dd");
+                    setSelectedDateFilter(todayStr);
+                  }
+                }}
+                className={cn(
+                  "pb-4 text-xs font-serif uppercase tracking-widest font-bold border-b-2 transition-all flex items-center gap-2",
+                  activeTab === "tableflow"
+                    ? "border-gold text-gold"
+                    : "border-transparent text-stone-500 hover:text-stone-300"
+                )}
+              >
+                📐 TableFlow ({t.adminTabFlowLabel})
+              </button>
+            </div>
+
+            {activeTab === "list" ? (
+              <div className="space-y-8">
+                {/* Filters and View Toggles */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-stone-900/20 p-6 border border-border">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <span className="text-[10px] uppercase tracking-widest text-stone-500">{t.navReviews} / {t.resDate}:</span>
+                    <select
+                      value={selectedDateFilter}
+                      onChange={(e) => setSelectedDateFilter(e.target.value)}
+                      className="bg-stone-950 border border-border px-4 py-2 text-xs text-stone-300 focus:outline-none focus:border-gold capitalize"
+                    >
                   <option value="">{t.adminAllDates}</option>
                   {uniqueDates.map((dateStr) => {
                     const parsedDate = new Date(`${dateStr}T12:00:00`);
@@ -590,6 +790,8 @@ export default function AdminPortal() {
             onUpdateReservation={handleUpdateReservation} 
           />
         )}
+        </div> {/* Closes flex-1 */}
+        </div> {/* Closes flex columns wrapper */}
       </div>
     </div>
   );
