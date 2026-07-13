@@ -317,6 +317,71 @@ Si deseas realizar modificaciones o tienes peticiones especiales, por favor pont
   })();
 }
 
+async function syncGoogleReviews(fsdb: AdminFirestore): Promise<any> {
+  const placeId = "ChIJL7umRjf1BUcR5lWohgdAFvo";
+  const url = `https://places.googleapis.com/v1/places/${placeId}`;
+  
+  console.log("[server] Syncing Google reviews from Google Places API...");
+  
+  let token = "";
+  try {
+    const cred = applicationDefault();
+    const tokenObj = await cred.getAccessToken();
+    token = tokenObj.access_token;
+  } catch (err: any) {
+    console.error("[server] Failed to get OAuth2 token for Places API:", err.message || err);
+    throw new Error("No se pudo obtener el token de acceso de Google.");
+  }
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "X-Goog-User-Project": "rahito-restaurant",
+      "X-Goog-FieldMask": "id,displayName,rating,userRatingCount,reviews"
+    }
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error("[server] Places API error response:", errText);
+    throw new Error(`Google Places API returned status ${res.status}`);
+  }
+
+  const data = (await res.json()) as any;
+
+  const rating = Number(data.rating) || 4.9;
+  const userRatingCount = Number(data.userRatingCount) || 193;
+  const reviews = (data.reviews || []).map((r: any) => ({
+    authorName: r.authorAttribution?.displayName || "Anónimo",
+    authorPhoto: r.authorAttribution?.photoUri || "",
+    rating: Number(r.rating) || 5,
+    text: r.text?.text || "",
+    originalText: r.originalText?.text || "",
+    languageCode: r.text?.languageCode || "",
+    originalLanguageCode: r.originalText?.languageCode || "",
+    relativeTime: r.relativePublishTimeDescription || "",
+    publishTime: r.publishTime || "",
+  }));
+
+  const payload = {
+    rating,
+    userRatingCount,
+    reviews,
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  await fsdb.doc("settings/google_reviews").set(payload);
+  console.log(`[server] Google reviews successfully synced and cached in Firestore (${reviews.length} reviews).`);
+  
+  return {
+    rating,
+    userRatingCount,
+    reviews,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 async function startServer() {
   // Best-effort first attempt at startup. If it fails (e.g. permissions not
   // yet granted), each incoming request will retry via ensureAdminFirestore,
@@ -786,6 +851,65 @@ Esperamos tener la oportunidad de recibirte en otra ocasión. ¡Muchas gracias!`
     } catch (err: any) {
       console.error("[Cancellation Error]:", err);
       return res.status(500).send(`Error al procesar la anulación de la reserva: ${err.message}`);
+    }
+  });
+
+  // Google reviews endpoint with 24h caching in Firestore
+  app.get("/api/reviews", async (req, res) => {
+    const fsdb = await requireAdminDb(res);
+    if (!fsdb) return;
+
+    try {
+      const docRef = fsdb.doc("settings/google_reviews");
+      const snap = await docRef.get();
+      
+      let data = snap.data();
+      let needsSync = false;
+
+      if (!snap.exists || !data) {
+        needsSync = true;
+      } else {
+        const updatedAt = data.updatedAt;
+        if (updatedAt) {
+          const updatedDate = typeof updatedAt.toDate === "function" ? updatedAt.toDate() : new Date(updatedAt);
+          const diffMs = Date.now() - updatedDate.getTime();
+          const oneDayMs = 24 * 60 * 60 * 1000;
+          if (diffMs > oneDayMs) {
+            needsSync = true;
+          }
+        } else {
+          needsSync = true;
+        }
+      }
+
+      if (needsSync) {
+        try {
+          const freshData = await syncGoogleReviews(fsdb);
+          return res.json(freshData);
+        } catch (syncErr: any) {
+          console.warn("[server] Failed to sync fresh reviews, falling back to cached reviews:", syncErr.message || syncErr);
+          if (data) {
+            return res.json({
+              rating: data.rating,
+              userRatingCount: data.userRatingCount,
+              reviews: data.reviews,
+              updatedAt: typeof data.updatedAt.toDate === "function" ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+              _cachedFallback: true
+            });
+          }
+          throw syncErr;
+        }
+      }
+
+      res.json({
+        rating: data!.rating,
+        userRatingCount: data!.userRatingCount,
+        reviews: data!.reviews,
+        updatedAt: typeof data!.updatedAt.toDate === "function" ? data!.updatedAt.toDate().toISOString() : data!.updatedAt
+      });
+    } catch (err: any) {
+      console.error("[server] Error in /api/reviews handler:", err.message || err);
+      res.status(500).json({ error: "failed_to_fetch_reviews", message: "No se pudieron obtener las opiniones en este momento." });
     }
   });
 
