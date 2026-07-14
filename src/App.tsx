@@ -628,11 +628,6 @@ export default function App() {
         <div className="max-w-7xl mx-auto flex flex-col items-center gap-20">
           <div className="text-center space-y-6 max-w-2xl">
             <h2 className="text-5xl md:text-8xl font-serif font-light tracking-tight italic">{t.resTitle}</h2>
-            <div className="flex gap-4 justify-center text-[10px] tracking-[0.4em] uppercase text-stone-600">
-              <span className="text-gold">{t.resSubtitleTables}</span>
-              <span>{t.resSubtitleEvents}</span>
-              <span>{t.resSubtitlePrivate}</span>
-            </div>
           </div>
           <div className="w-full">
             <ReservationForm />
