@@ -337,7 +337,6 @@ async function syncGoogleReviews(fsdb: AdminFirestore, lang: string): Promise<an
     method: "GET",
     headers: {
       "Authorization": `Bearer ${token}`,
-      "X-Goog-User-Project": "rahito-restaurant",
       "X-Goog-FieldMask": "id,displayName,rating,userRatingCount,reviews"
     }
   });
