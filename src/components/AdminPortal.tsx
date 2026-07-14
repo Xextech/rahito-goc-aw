@@ -48,7 +48,7 @@ export default function AdminPortal() {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         setUserEmail(user.email);
-        if (user.email === "bove.abt@gmail.com") {
+        if (user.email === "rahitorestaurant@gmail.com") {
           setIsAuthenticated(true);
           return;
         }
@@ -102,12 +102,12 @@ export default function AdminPortal() {
     }
   };
 
-  // Google Login for bove.abt@gmail.com
+  // Google Login for rahitorestaurant@gmail.com
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      if (result.user?.email === "bove.abt@gmail.com") {
+      if (result.user?.email === "rahitorestaurant@gmail.com") {
         setIsAuthenticated(true);
       } else {
         alert(t.adminGoogleOnlyAlert);
