@@ -25,7 +25,7 @@ service cloud.firestore {
     // bypasses these rules.
     function isOwner() {
       return request.auth != null &&
-        (request.auth.token.email == "bove.abt@gmail.com" || request.auth.token.owner == true);
+        (request.auth.token.email == "rahitorestaurant@gmail.com" || request.auth.token.owner == true);
     }
 
     function isValidReservation(data) {

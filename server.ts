@@ -135,7 +135,7 @@ function isValidBookingDate(dateStr: string): boolean {
   const target = new Date(`${dateStr}T00:00:00`);
   if (Number.isNaN(target.getTime())) return false;
   const diffDays = (target.getTime() - today.getTime()) / 86_400_000;
-  if (diffDays < 0 || diffDays > MAX_ADVANCE_DAYS) return false;
+  if (diffDays < 1 || diffDays > MAX_ADVANCE_DAYS) return false;
   if (target.getDay() === 1) return false; // Monday: closed
   return true;
 }
