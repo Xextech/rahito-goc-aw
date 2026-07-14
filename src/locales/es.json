@@ -94,6 +94,7 @@
   "resSubtitleEvents": "Eventos",
   "resSubtitlePrivate": "Privado",
   "resErrorRateLimited": "Demasiados intentos. Espere unos minutos e inténtelo de nuevo.",
+  "resErrorTooLate": "Las reservas para el mismo día deben realizarse con al menos 2 horas de antelación.",
   "resErrorGeneric": "Error al registrar la reserva. Inténtelo de nuevo.",
   "resAvailabilityError": "No se pudo cargar la disponibilidad. Actualice la página.",
   "resWeekdaysShort": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],

@@ -54,7 +54,7 @@ export default function ReservationForm() {
   const [availabilityError, setAvailabilityError] = useState(false);
 
   const activeLocale = lang === "es" ? es : pl;
-  const availableDates = Array.from({ length: 14 }, (_, i) => addDays(startOfToday(), i + 1));
+  const availableDates = Array.from({ length: 14 }, (_, i) => addDays(startOfToday(), i));
 
   const fetchAvailability = useCallback(async () => {
     const start = format(availableDates[0], "yyyy-MM-dd");
@@ -89,7 +89,23 @@ export default function ReservationForm() {
       // Un evento necesita el restaurante entero: solo días sin reservas
       return res.some(isActiveReservation);
     }
-    return isDayFullyBooked(res, tables, TIME_SLOTS, guests);
+    const fullyBooked = isDayFullyBooked(res, tables, TIME_SLOTS, guests);
+    if (fullyBooked) return true;
+
+    // Si es hoy, verificar si todas las franjas horarias libres están a menos de 2h de antelación
+    if (isSameDay(d, startOfToday())) {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const disabledSlots = computeDisabledSlotsForParty(res, tables, TIME_SLOTS, guests);
+      const hasAnyValidSlot = TIME_SLOTS.some((slot) => {
+        if (disabledSlots.has(slot)) return false;
+        const [sh, sm] = slot.split(":").map(Number);
+        const slotMin = sh * 60 + sm;
+        return slotMin >= currentMinutes + 120;
+      });
+      return !hasAnyValidSlot;
+    }
+    return false;
   };
 
   // Si la fecha seleccionada deja de ser válida (lunes, evento, aforo lleno),
@@ -137,6 +153,8 @@ export default function ReservationForm() {
           setError(mode === "event" ? t.resEventDayTaken : t.resNoAvailability);
         } else if (data.error === "no_availability") {
           setError(t.resNoAvailability);
+        } else if (data.error === "too_late") {
+          setError(t.resErrorTooLate);
         } else if (res.status === 429) {
           setError(t.resErrorRateLimited);
         } else {
@@ -313,7 +331,18 @@ export default function ReservationForm() {
                       const disabledSlots = computeDisabledSlotsForParty(dayRes, tables, TIME_SLOTS, guests);
 
                       return TIME_SLOTS.map((t_slot) => {
-                        const disabled = disabledSlots.has(t_slot);
+                        let disabled = disabledSlots.has(t_slot);
+
+                        // Si es hoy, aplicar filtro de margen de 2 horas de antelación
+                        if (isSameDay(date, startOfToday())) {
+                          const now = new Date();
+                          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                          const [sh, sm] = t_slot.split(":").map(Number);
+                          const slotMin = sh * 60 + sm;
+                          if (slotMin < currentMinutes + 120) {
+                            disabled = true;
+                          }
+                        }
 
                         return (
                           <button

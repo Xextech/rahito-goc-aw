@@ -94,6 +94,7 @@
   "resSubtitleEvents": "Wydarzenia",
   "resSubtitlePrivate": "Prywatne",
   "resErrorRateLimited": "Zbyt wiele prób. Odczekaj kilka minut i spróbuj ponownie.",
+  "resErrorTooLate": "Rezerwacje na ten sam dzień muszą być dokonywane z co najmniej 2-godzinnym wyprzedzeniem.",
   "resErrorGeneric": "Nie udało się zarezerwować stolika. Spróbuj ponownie później.",
   "resAvailabilityError": "Nie udało się wczytać dostępności. Odśwież stronę.",
   "resWeekdaysShort": ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nie"],

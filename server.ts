@@ -135,9 +135,28 @@ function isValidBookingDate(dateStr: string): boolean {
   const target = new Date(`${dateStr}T00:00:00`);
   if (Number.isNaN(target.getTime())) return false;
   const diffDays = (target.getTime() - today.getTime()) / 86_400_000;
-  if (diffDays < 1 || diffDays > MAX_ADVANCE_DAYS) return false;
+  if (diffDays < 0 || diffDays > MAX_ADVANCE_DAYS) return false;
   if (target.getDay() === 1) return false; // Monday: closed
   return true;
+}
+
+function getPolandTimeInfo(): { dateStr: string; minutes: number } {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Warsaw",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  });
+  const parts = formatter.formatToParts(new Date());
+  const partMap = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  
+  // Format as YYYY-MM-DD
+  const dateStr = `${partMap.year}-${partMap.month}-${partMap.day}`;
+  const minutes = Number(partMap.hour) * 60 + Number(partMap.minute);
+  return { dateStr, minutes };
 }
 
 function buildTimeSlots(): string[] {
@@ -485,6 +504,30 @@ async function startServer() {
     if (!isValidBookingDate(date)) {
       return res.status(400).json({ error: "invalid_date", message: "Fecha inválida, cerrada (lunes) o fuera de rango." });
     }
+
+    // Si la reserva es para hoy, validar margen de 2 horas de antelación en Polonia
+    const polandTime = getPolandTimeInfo();
+    if (date === polandTime.dateStr) {
+      if (mode === "table") {
+        const [sh, sm] = time.split(":").map(Number);
+        const slotMin = sh * 60 + sm;
+        if (slotMin < polandTime.minutes + 120) {
+          return res.status(400).json({
+            error: "too_late",
+            message: "Las reservas para el mismo día deben realizarse con al menos 2 horas de antelación.",
+          });
+        }
+      } else {
+        // Bloquear eventos privados en el mismo día si ya es tarde (después de las 18:00)
+        if (polandTime.minutes > 18 * 60) {
+          return res.status(400).json({
+            error: "too_late",
+            message: "No se pueden reservar eventos privados para el mismo día a esta hora.",
+          });
+        }
+      }
+    }
+
     if (name.length < 2 || !EMAIL_RE.test(email) || !PHONE_RE.test(phone)) {
       return res.status(400).json({ error: "invalid_contact", message: "Datos de contacto inválidos." });
     }
