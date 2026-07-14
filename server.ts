@@ -317,11 +317,11 @@ Si deseas realizar modificaciones o tienes peticiones especiales, por favor pont
   })();
 }
 
-async function syncGoogleReviews(fsdb: AdminFirestore): Promise<any> {
+async function syncGoogleReviews(fsdb: AdminFirestore, lang: string): Promise<any> {
   const placeId = "ChIJL7umRjf1BUcR5lWohgdAFvo";
-  const url = `https://places.googleapis.com/v1/places/${placeId}`;
+  const url = `https://places.googleapis.com/v1/places/${placeId}?languageCode=${lang}`;
   
-  console.log("[server] Syncing Google reviews from Google Places API...");
+  console.log(`[server] Syncing Google reviews (${lang}) from Google Places API...`);
   
   let token = "";
   try {
@@ -371,8 +371,8 @@ async function syncGoogleReviews(fsdb: AdminFirestore): Promise<any> {
     updatedAt: FieldValue.serverTimestamp(),
   };
 
-  await fsdb.doc("settings/google_reviews").set(payload);
-  console.log(`[server] Google reviews successfully synced and cached in Firestore (${reviews.length} reviews).`);
+  await fsdb.doc(`settings/google_reviews_${lang}`).set(payload);
+  console.log(`[server] Google reviews (${lang}) successfully synced and cached in Firestore (${reviews.length} reviews).`);
   
   return {
     rating,
@@ -859,8 +859,10 @@ Esperamos tener la oportunidad de recibirte en otra ocasión. ¡Muchas gracias!`
     const fsdb = await requireAdminDb(res);
     if (!fsdb) return;
 
+    const lang = (req.query.lang as string) === "pl" ? "pl" : "es";
+
     try {
-      const docRef = fsdb.doc("settings/google_reviews");
+      const docRef = fsdb.doc(`settings/google_reviews_${lang}`);
       const snap = await docRef.get();
       
       let data = snap.data();
@@ -884,10 +886,10 @@ Esperamos tener la oportunidad de recibirte en otra ocasión. ¡Muchas gracias!`
 
       if (needsSync) {
         try {
-          const freshData = await syncGoogleReviews(fsdb);
+          const freshData = await syncGoogleReviews(fsdb, lang);
           return res.json(freshData);
         } catch (syncErr: any) {
-          console.warn("[server] Failed to sync fresh reviews, falling back to cached reviews:", syncErr.message || syncErr);
+          console.warn(`[server] Failed to sync fresh reviews for ${lang}, falling back to cached reviews:`, syncErr.message || syncErr);
           if (data) {
             return res.json({
               rating: data.rating,
@@ -908,7 +910,7 @@ Esperamos tener la oportunidad de recibirte en otra ocasión. ¡Muchas gracias!`
         updatedAt: typeof data!.updatedAt.toDate === "function" ? data!.updatedAt.toDate().toISOString() : data!.updatedAt
       });
     } catch (err: any) {
-      console.error("[server] Error in /api/reviews handler:", err.message || err);
+      console.error(`[server] Error in /api/reviews handler (${lang}):`, err.message || err);
       res.status(500).json({ error: "failed_to_fetch_reviews", message: "No se pudieron obtener las opiniones en este momento." });
     }
   });

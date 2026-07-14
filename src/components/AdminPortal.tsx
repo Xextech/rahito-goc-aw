@@ -452,7 +452,7 @@ export default function AdminPortal() {
                 <button
                   onClick={() => handleDateOffset(-1)}
                   className="flex-1 py-2 border border-border text-xs hover:border-gold hover:text-gold transition-all"
-                  title={lang === "es" ? "Día Anterior" : "Poprzedni día"}
+                  title={lang === "es" ? "Día Anterior" : "Poprzedni dzień"}
                 >
                   ◀
                 </button>
@@ -469,7 +469,7 @@ export default function AdminPortal() {
                 <button
                   onClick={() => handleDateOffset(1)}
                   className="flex-1 py-2 border border-border text-xs hover:border-gold hover:text-gold transition-all"
-                  title={lang === "es" ? "Día Siguiente" : "Następny día"}
+                  title={lang === "es" ? "Día Siguiente" : "Następny dzień"}
                 >
                   ▶
                 </button>
@@ -546,7 +546,7 @@ export default function AdminPortal() {
                 {/* Filters and View Toggles */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-stone-900/20 p-6 border border-border">
                   <div className="flex items-center gap-4 flex-wrap">
-                    <span className="text-[10px] uppercase tracking-widest text-stone-500">{t.navReviews} / {t.resDate}:</span>
+                    <span className="text-[10px] uppercase tracking-widest text-stone-500">{lang === "es" ? "Filtro" : "Filtr"} / {t.resDate}:</span>
                     <select
                       value={selectedDateFilter}
                       onChange={(e) => setSelectedDateFilter(e.target.value)}

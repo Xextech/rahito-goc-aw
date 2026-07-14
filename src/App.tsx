@@ -147,6 +147,7 @@ export default function App() {
 
   // States and data for the menu/experience dishes carousel
   const [menuIndex, setMenuIndex] = useState(0);
+  const [step, setStep] = useState(3);
 
   const dishes = [
     { id: "dish_1", tag: t.dish1Tag, title: t.dish1Title, desc: t.dish1Desc, img: "/paella marisco 2.jpg" },
@@ -161,11 +162,26 @@ export default function App() {
   ];
 
   React.useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setStep(1);
+      } else if (window.innerWidth < 1024) {
+        setStep(2);
+      } else {
+        setStep(3);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  React.useEffect(() => {
     const timer = setInterval(() => {
-      setMenuIndex((prev) => (prev + 3) % dishes.length);
+      setMenuIndex((prev) => (prev + step) % dishes.length);
     }, 15000);
     return () => clearInterval(timer);
-  }, [dishes.length]);
+  }, [dishes.length, step]);
 
   if (showAdmin) {
     return (
@@ -535,14 +551,14 @@ export default function App() {
           <div className="relative max-w-6xl mx-auto px-2 sm:px-12">
             {/* Arrows */}
             <button
-              onClick={() => setMenuIndex((prev) => (prev - 3 + dishes.length) % dishes.length)}
+              onClick={() => setMenuIndex((prev) => (prev - step + dishes.length) % dishes.length)}
               className="absolute -left-2 sm:left-0 md:-left-12 top-[180px] sm:top-[220px] md:top-[240px] -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full border border-border bg-dark/95 backdrop-blur-md flex items-center justify-center text-stone-400 hover:text-gold hover:border-gold transition-all duration-300 shadow-xl cursor-pointer"
               aria-label="Previous dish"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <button
-              onClick={() => setMenuIndex((prev) => (prev + 3) % dishes.length)}
+              onClick={() => setMenuIndex((prev) => (prev + step) % dishes.length)}
               className="absolute -right-2 sm:right-0 md:-right-12 top-[180px] sm:top-[220px] md:top-[240px] -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full border border-border bg-dark/95 backdrop-blur-md flex items-center justify-center text-stone-400 hover:text-gold hover:border-gold transition-all duration-300 shadow-xl cursor-pointer"
               aria-label="Next dish"
             >
@@ -586,12 +602,12 @@ export default function App() {
 
             {/* Indicator Dots */}
             <div className="flex justify-center gap-2 mt-12">
-              {Array.from({ length: Math.ceil(dishes.length / 3) }).map((_, pageIdx) => {
-                const isActive = Math.floor(menuIndex / 3) === pageIdx;
+              {Array.from({ length: Math.ceil(dishes.length / step) }).map((_, pageIdx) => {
+                const isActive = Math.floor(menuIndex / step) === pageIdx;
                 return (
                   <button
                     key={pageIdx}
-                    onClick={() => setMenuIndex(pageIdx * 3)}
+                    onClick={() => setMenuIndex(pageIdx * step)}
                     className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
                       isActive ? "bg-gold w-4" : "bg-white/20 hover:bg-white/40"
                     }`}

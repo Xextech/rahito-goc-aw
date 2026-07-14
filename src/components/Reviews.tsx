@@ -58,7 +58,7 @@ const FALLBACK_REVIEWS: Review[] = [
 ];
 
 export default function Reviews() {
-  const { t, language } = useLanguage();
+  const { t, lang } = useLanguage();
   const [reviews, setReviews] = useState<Review[]>(FALLBACK_REVIEWS);
   const [rating, setRating] = useState<number>(4.9);
   const [userRatingCount, setUserRatingCount] = useState<number>(193);
@@ -67,6 +67,8 @@ export default function Reviews() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [visibleCards, setVisibleCards] = useState(3);
   const [showOriginal, setShowOriginal] = useState<Record<number, boolean>>({});
+
+  const scrollRef = React.useRef<HTMLDivElement>(null);
 
   // Detect responsive visible cards
   useEffect(() => {
@@ -80,10 +82,11 @@ export default function Reviews() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Fetch reviews from our cached endpoint
+  // Fetch reviews from our cached endpoint (bilingual)
   useEffect(() => {
     let active = true;
-    fetch('/api/reviews')
+    setLoading(true);
+    fetch(`/api/reviews?lang=${lang}`)
       .then((res) => {
         if (!res.ok) throw new Error('API response error');
         return res.json();
@@ -105,16 +108,41 @@ export default function Reviews() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [lang]);
 
   const maxIndex = Math.max(0, reviews.length - visibleCards);
 
+  // Track scroll position to update current index
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const cardWidth = el.offsetWidth / visibleCards;
+    const index = Math.round(el.scrollLeft / cardWidth);
+    if (index !== currentIndex && index >= 0 && index <= maxIndex) {
+      setCurrentIndex(index);
+    }
+  };
+
+  // Scroll to index programmatically
+  const scrollTo = (index: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const cardWidth = el.offsetWidth / visibleCards;
+    el.scrollTo({
+      left: index * cardWidth,
+      behavior: 'smooth'
+    });
+    setCurrentIndex(index);
+  };
+
   const handleNext = () => {
-    setCurrentIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
+    const nextIdx = currentIndex >= maxIndex ? 0 : currentIndex + 1;
+    scrollTo(nextIdx);
   };
 
   const handlePrev = () => {
-    setCurrentIndex((prev) => (prev <= 0 ? maxIndex : prev - 1));
+    const prevIdx = currentIndex <= 0 ? maxIndex : prev - 1;
+    scrollTo(prevIdx);
   };
 
   const toggleLanguage = (index: number) => {
@@ -155,7 +183,7 @@ export default function Reviews() {
                 </div>
               </div>
               <span className="text-stone-muted text-xs sm:text-sm tracking-[0.2em] font-light uppercase">
-                {language === 'es' 
+                {lang === 'es' 
                   ? `Basado en ${userRatingCount} valoraciones en Google` 
                   : `Na podstawie ${userRatingCount} opinii w Google`}
               </span>
@@ -165,90 +193,87 @@ export default function Reviews() {
 
         {/* Carousel Container */}
         <div className="relative group space-y-6">
-          <div className="overflow-hidden px-1 py-4">
-            <motion.div 
-              className="flex transition-transform duration-500 ease-out"
-              style={{ 
-                transform: `translateX(-${currentIndex * (100 / visibleCards)}%)` 
-              }}
-            >
-              {reviews.map((review, index) => {
-                const isTranslated = review.originalText && review.originalText !== review.text;
-                const showOrig = showOriginal[index] || false;
-                const reviewText = showOrig && isTranslated ? review.originalText : review.text;
+          <div 
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-1 py-4 gap-0"
+          >
+            {reviews.map((review, index) => {
+              const isTranslated = review.originalText && review.originalText !== review.text;
+              const showOrig = showOriginal[index] || false;
+              const reviewText = showOrig && isTranslated ? review.originalText : review.text;
 
-                return (
-                  <div 
-                    key={index} 
-                    className="flex-shrink-0 w-full sm:w-1/2 lg:w-1/3 px-3"
-                  >
-                    <div className="h-full flex flex-col justify-between p-6 sm:p-8 rounded-2xl border border-stone-800/60 bg-stone-900/10 backdrop-blur-md hover:border-stone-700/80 transition-all duration-300 shadow-xl hover:shadow-black/30 relative group/card">
-                      
-                      {/* Top content */}
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            {review.authorPhoto ? (
-                              <img 
-                                src={review.authorPhoto} 
-                                alt={review.authorName} 
-                                className="w-10 h-10 rounded-full object-cover border border-stone-800"
-                                referrerPolicy="no-referrer"
-                              />
-                            ) : (
-                              <div className="w-10 h-10 rounded-full border border-stone-800 bg-stone-950 flex items-center justify-center text-stone-600">
-                                <User size={18} />
-                              </div>
-                            )}
-                            <div>
-                              <h4 className="text-sm font-semibold text-stone-200 tracking-wide">{review.authorName}</h4>
-                              <p className="text-[10px] text-stone-500 font-light">{review.relativeTime}</p>
+              return (
+                <div 
+                  key={index} 
+                  className="flex-shrink-0 w-full sm:w-1/2 lg:w-1/3 px-3 snap-center"
+                >
+                  <div className="h-full flex flex-col justify-between p-6 sm:p-8 rounded-2xl border border-stone-800/60 bg-stone-900/10 backdrop-blur-md hover:border-stone-700/80 transition-all duration-300 shadow-xl hover:shadow-black/30 relative group/card">
+                    
+                    {/* Top content */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {review.authorPhoto ? (
+                            <img 
+                              src={review.authorPhoto} 
+                              alt={review.authorName} 
+                              className="w-10 h-10 rounded-full object-cover border border-stone-800"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full border border-stone-800 bg-stone-950 flex items-center justify-center text-stone-600">
+                              <User size={18} />
                             </div>
-                          </div>
-                          <div className="flex items-center gap-0.5 text-gold">
-                            {[...Array(5)].map((_, i) => (
-                              <Star 
-                                key={i} 
-                                size={12} 
-                                fill={i < review.rating ? "currentColor" : "none"} 
-                                className={i < review.rating ? "text-gold" : "text-stone-800"}
-                              />
-                            ))}
+                          )}
+                          <div>
+                            <h4 className="text-sm font-semibold text-stone-200 tracking-wide">{review.authorName}</h4>
+                            <p className="text-[10px] text-stone-500 font-light">{review.relativeTime}</p>
                           </div>
                         </div>
-
-                        {/* Review text */}
-                        <div className="text-stone-300 font-light text-sm leading-relaxed font-sans min-h-[100px] max-h-[160px] overflow-y-auto custom-scrollbar">
-                          "{reviewText}"
+                        <div className="flex items-center gap-0.5 text-gold">
+                          {[...Array(5)].map((_, i) => (
+                            <Star 
+                              key={i} 
+                              size={12} 
+                              fill={i < review.rating ? "currentColor" : "none"} 
+                              className={i < review.rating ? "text-gold" : "text-stone-800"}
+                            />
+                          ))}
                         </div>
                       </div>
 
-                      {/* Bottom translation controls / branding */}
-                      <div className="pt-4 mt-4 border-t border-stone-900/60 flex items-center justify-between text-[10px] tracking-wider uppercase font-semibold">
-                        {isTranslated ? (
-                          <button
-                            onClick={() => toggleLanguage(index)}
-                            className="text-gold hover:text-gold-light transition-colors"
-                          >
-                            {showOrig 
-                              ? (language === 'es' ? "Ver traducción" : "Zobacz tłumaczenie") 
-                              : (language === 'es' ? "Ver original (Polaco)" : "Zobacz oryginał (Polski)")
-                            }
-                          </button>
-                        ) : (
-                          <span className="text-stone-600">Google Verified</span>
-                        )}
-                        <img 
-                          src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" 
-                          alt="Google logo" 
-                          className="w-3.5 h-3.5 opacity-40 group-hover/card:opacity-75 transition-opacity"
-                        />
+                      {/* Review text */}
+                      <div className="text-stone-300 font-light text-sm leading-relaxed font-sans min-h-[100px] max-h-[160px] overflow-y-auto custom-scrollbar">
+                        "{reviewText}"
                       </div>
                     </div>
+
+                    {/* Bottom translation controls / branding */}
+                    <div className="pt-4 mt-4 border-t border-stone-900/60 flex items-center justify-between text-[10px] tracking-wider uppercase font-semibold">
+                      {isTranslated ? (
+                        <button
+                          onClick={() => toggleLanguage(index)}
+                          className="text-gold hover:text-gold-light transition-colors"
+                        >
+                          {showOrig 
+                            ? (lang === 'es' ? "Ver traducción" : "Zobacz tłumaczenie") 
+                            : (lang === 'es' ? "Ver original (Polaco)" : "Zobacz oryginał (Polski)")
+                          }
+                        </button>
+                      ) : (
+                        <span className="text-stone-600">Google Verified</span>
+                      )}
+                      <img 
+                        src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" 
+                        alt="Google logo" 
+                        className="w-3.5 h-3.5 opacity-40 group-hover/card:opacity-75 transition-opacity"
+                      />
+                    </div>
                   </div>
-                );
-              })}
-            </motion.div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Navigation Controls */}
@@ -277,7 +302,7 @@ export default function Reviews() {
               {[...Array(maxIndex + 1)].map((_, i) => (
                 <button
                   key={i}
-                  onClick={() => setCurrentIndex(i)}
+                  onClick={() => scrollTo(i)}
                   className={`h-1 rounded-full transition-all duration-350 ${
                     i === currentIndex ? "w-6 bg-gold" : "w-1.5 bg-stone-800"
                   }`}
@@ -308,7 +333,7 @@ export default function Reviews() {
             className="inline-flex items-center gap-2.5 text-[10px] uppercase tracking-[0.4em] text-gold hover:text-gold-light transition-colors group font-semibold"
           >
             <MessageSquare size={13} className="text-gold" />
-            {language === 'es' ? "Escribir una opinión" : "Napisz opinię"} 
+            {lang === 'es' ? "Escribir una opinión" : "Napisz opinię"} 
             <ExternalLink size={12} className="opacity-60 group-hover:translate-x-0.5 transition-transform" />
           </a>
         </div>
