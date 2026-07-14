@@ -637,7 +637,45 @@ async function startServer() {
       }
 
       const data = docSnap.data()!;
-      const { name, email, phone, date, time, guests, status } = data;
+      const { name, email, phone, date, time, guests, status, type } = data;
+
+      if (type === "event") {
+        return res.status(200).send(`
+          <!DOCTYPE html>
+          <html lang="es">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Anulación de Evento Privado - Rahito Głogów</title>
+              <style>
+                  body { background-color: #0c0b0a; color: #e7e5e4; font-family: 'Playfair Display', Georgia, serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; text-align: center; }
+                  .container { max-width: 500px; border: 1px solid #d97706; background-color: #1c1917; padding: 40px; border-radius: 4px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+                  h1 { color: #d97706; font-size: 2.2rem; font-weight: 300; margin-top: 0; font-style: italic; }
+                  p { font-family: 'Inter', sans-serif; font-size: 0.95rem; line-height: 1.6; color: #a8a29e; margin-bottom: 20px; }
+                  .phone-number { font-size: 1.8rem; font-family: 'Playfair Display', serif; font-style: italic; color: #f5f5f4; margin: 25px 0; font-weight: bold; }
+                  .btn { display: inline-block; background-color: #d97706; color: #0c0b0a; padding: 12px 28px; text-decoration: none; font-weight: bold; font-family: 'Inter', sans-serif; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; border-radius: 4px; transition: background-color 0.2s; margin-bottom: 12px; }
+                  .btn:hover { background-color: #f59e0b; }
+                  .btn-secondary { display: inline-block; color: #a8a29e; padding: 12px 28px; text-decoration: none; font-family: 'Inter', sans-serif; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; border-radius: 4px; transition: color 0.2s; border: 1px solid #292524; }
+                  .btn-secondary:hover { color: #f5f5f4; border-color: #d97706; }
+                  .button-group { display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; }
+              </style>
+              <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Playfair+Display:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+          </head>
+          <body>
+              <div class="container">
+                  <h1>Anulación de Evento Privado</h1>
+                  <p>Por motivos de seguridad y logística, la cancelación de un <strong>Evento Privado</strong> no puede realizarse de forma automática desde la web.</p>
+                  <p>Para anular este evento, por favor póngase en contacto directamente por teléfono con la propiedad:</p>
+                  <div class="phone-number">+48 510 276 655</div>
+                  <div class="button-group">
+                      <a href="tel:+48510276655" class="btn">Llamar al Propietario</a>
+                      <a href="/" class="btn-secondary">Volver al Sitio Web</a>
+                  </div>
+              </div>
+          </body>
+          </html>
+        `);
+      }
 
       if (status === "cancelled") {
         return res.status(200).send(`
