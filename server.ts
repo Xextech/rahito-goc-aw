@@ -540,7 +540,8 @@ async function startServer() {
 
       const ref = await fsdb.collection("reservations").add(reservationDoc);
 
-      const baseUrl = process.env.APP_URL || `${req.headers["x-forwarded-proto"] || "https"}://${req.get("host")}`;
+      const forwardedHost = (req.headers["x-forwarded-host"] as string) || (req.headers["x-fh-requested-host"] as string);
+      const baseUrl = process.env.APP_URL || `${req.headers["x-forwarded-proto"] || "https"}://${forwardedHost || req.get("host")}`;
       await sendReservationEmails({ name, email, phone, date, time, guests, bookingRef: ref.id, tableName, type: mode, baseUrl });
 
       res.status(201).json({ id: ref.id, date, time, guests, tableName, type: mode });
