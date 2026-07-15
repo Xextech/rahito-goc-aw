@@ -21,6 +21,24 @@ export function LogoIcon({ className = "w-8 h-8" }: { className?: string }) {
   );
 }
 
+export function TiktokIcon({ size = 20, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
+    </svg>
+  );
+}
+
 // Full Brand Logo with text adapted for headers/navigation
 export function Logo({ className = "h-8", showText = true }: { className?: string; showText?: boolean }) {
   const { t } = useLanguage();
@@ -644,8 +662,9 @@ export default function App() {
                {t.footerTagline}
              </p>
              <div className="flex gap-6">
-               <a href="#" className="text-stone-500 hover:text-gold transition-all"><Instagram size={20} /></a>
-               <a href="#" className="text-stone-500 hover:text-gold transition-all"><Facebook size={20} /></a>
+               <a href="https://www.instagram.com/rahitorestauracja?igsh=ZjdiZnUyaXY5aHFu" target="_blank" rel="noopener noreferrer" className="text-stone-500 hover:text-gold transition-all"><Instagram size={20} /></a>
+               <a href="https://www.facebook.com/share/1H3acM2k8b/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" className="text-stone-500 hover:text-gold transition-all"><Facebook size={20} /></a>
+               <a href="https://www.tiktok.com/@rahito01?_r=1&_t=ZN-97oW8ava5bS" target="_blank" rel="noopener noreferrer" className="text-stone-500 hover:text-gold transition-all"><TiktokIcon size={20} /></a>
              </div>
           </div>
           <div className="space-y-8">

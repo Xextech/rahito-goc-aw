@@ -89,15 +89,21 @@ export default function ReservationForm() {
       // Un evento necesita el restaurante entero: solo días sin reservas
       return res.some(isActiveReservation);
     }
-    const fullyBooked = isDayFullyBooked(res, tables, TIME_SLOTS, guests);
+    
+    const dayOfWeek = d.getDay();
+    const isFriSat = dayOfWeek === 5 || dayOfWeek === 6;
+    const maxTime = isFriSat ? "21:00" : "19:00";
+    const daySlots = TIME_SLOTS.filter(s => s <= maxTime);
+
+    const fullyBooked = isDayFullyBooked(res, tables, daySlots, guests);
     if (fullyBooked) return true;
 
     // Si es hoy, verificar si todas las franjas horarias libres están a menos de 2h de antelación
     if (isSameDay(d, startOfToday())) {
       const now = new Date();
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      const disabledSlots = computeDisabledSlotsForParty(res, tables, TIME_SLOTS, guests);
-      const hasAnyValidSlot = TIME_SLOTS.some((slot) => {
+      const disabledSlots = computeDisabledSlotsForParty(res, tables, daySlots, guests);
+      const hasAnyValidSlot = daySlots.some((slot) => {
         if (disabledSlots.has(slot)) return false;
         const [sh, sm] = slot.split(":").map(Number);
         const slotMin = sh * 60 + sm;
@@ -326,11 +332,16 @@ export default function ReservationForm() {
                         );
                       }
 
+                      const dayOfWeek = date.getDay();
+                      const isFriSat = dayOfWeek === 5 || dayOfWeek === 6;
+                      const maxTime = isFriSat ? "21:00" : "19:00";
+                      const daySlots = TIME_SLOTS.filter(s => s <= maxTime);
+
                       // Disponibilidad por mesas reales, con franja de 2 horas
                       const dayRes = getDayRes(date);
-                      const disabledSlots = computeDisabledSlotsForParty(dayRes, tables, TIME_SLOTS, guests);
+                      const disabledSlots = computeDisabledSlotsForParty(dayRes, tables, daySlots, guests);
 
-                      return TIME_SLOTS.map((t_slot) => {
+                      return daySlots.map((t_slot) => {
                         let disabled = disabledSlots.has(t_slot);
 
                         // Si es hoy, aplicar filtro de margen de 2 horas de antelación

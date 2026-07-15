@@ -97,6 +97,17 @@ export default function TableFlow({
     return () => { cancelled = true; };
   }, []);
 
+  // Clamp activeTimeSlot to the day's max time if they switch dates
+  useEffect(() => {
+    const targetDate = new Date(`${selectedDate}T12:00:00`);
+    const dayOfWeek = targetDate.getDay();
+    const isFriSat = dayOfWeek === 5 || dayOfWeek === 6;
+    const maxTime = isFriSat ? "21:00" : "19:00";
+    if (activeTimeSlot > maxTime) {
+      setActiveTimeSlot(maxTime);
+    }
+  }, [selectedDate, activeTimeSlot]);
+
   // Active reservations for the selected date (events included)
   const dateReservations = reservations.filter(
     (r) => r.date === selectedDate && isActiveReservation(r)
@@ -356,7 +367,13 @@ export default function TableFlow({
                   .map(r => r.time)
               );
 
-              return TIME_SLOTS.map((slot) => {
+              const targetDate = new Date(`${selectedDate}T12:00:00`);
+              const dayOfWeek = targetDate.getDay();
+              const isFriSat = dayOfWeek === 5 || dayOfWeek === 6;
+              const maxTime = isFriSat ? "21:00" : "19:00";
+              const daySlots = TIME_SLOTS.filter(s => s <= maxTime);
+
+              return daySlots.map((slot) => {
                 const bookingsInSlot = dateReservations.filter(
                   (r) => r.type !== "event" && r.status === "confirmed" && blocksSlot(r.time, slot)
                 );
@@ -439,6 +456,66 @@ export default function TableFlow({
               backgroundSize: "24px 24px"
             }}
           >
+            {/* SVG Connector Lines for grouped/joined tables */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+              <style>{`
+                @keyframes dash {
+                  to {
+                    stroke-dashoffset: -20;
+                  }
+                }
+                .animate-dash {
+                  animation: dash 1.5s linear infinite;
+                }
+              `}</style>
+              {(() => {
+                const getTableCoordinates = (tableId: string) => {
+                  const tb = tables.find(t => t.id === tableId);
+                  return tb ? { x: tb.x, y: tb.y } : null;
+                };
+
+                const multiTableReservations = currentReservations.filter(
+                  (r) => Array.isArray(r.tableIds) && r.tableIds.length > 1
+                );
+
+                return multiTableReservations.map((res) => {
+                  const coords = res.tableIds!
+                    .map(getTableCoordinates)
+                    .filter((c): c is { x: number; y: number } => c !== null);
+
+                  return coords.slice(0, -1).map((c1, idx) => {
+                    const c2 = coords[idx + 1];
+                    return (
+                      <g key={`${res.id}-link-${idx}`}>
+                        {/* Outer thick glow line */}
+                        <line
+                          x1={`${c1.x}%`}
+                          y1={`${c1.y}%`}
+                          x2={`${c2.x}%`}
+                          y2={`${c2.y}%`}
+                          stroke="#d97706"
+                          strokeWidth="8"
+                          strokeLinecap="round"
+                          opacity="0.25"
+                        />
+                        {/* Inner animating dashed line */}
+                        <line
+                          x1={`${c1.x}%`}
+                          y1={`${c1.y}%`}
+                          x2={`${c2.x}%`}
+                          y2={`${c2.y}%`}
+                          stroke="#f59e0b"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeDasharray="6 6"
+                          className="animate-dash"
+                        />
+                      </g>
+                    );
+                  });
+                });
+              })()}
+            </svg>
             {/* Restaurant Entrance Marker */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-stone-900 border-b border-x border-border font-mono text-[8px] uppercase tracking-[0.3em] px-4 py-1.5 text-stone-600 z-10">
                {t.tfEntrance}

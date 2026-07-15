@@ -1,5 +1,5 @@
 export const SLOT_CAPACITY = 20;
-export const FULL_SINGLE_THRESHOLD = 10;
+export const FULL_SINGLE_THRESHOLD = 17;
 // Cada reserva ocupa su mesa durante una franja mínima de 2 horas
 export const RESERVATION_DURATION_MIN = 120;
 

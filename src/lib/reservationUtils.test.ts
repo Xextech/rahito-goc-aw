@@ -88,25 +88,38 @@ describe('autoAssignTables', () => {
     expect(autoAssignTables(existing, DEFAULT_TABLES, '20:30', 2)).toBeNull();
   });
 
-  it('a party of 10+ takes the whole restaurant and blocks remaining tables', () => {
-    const result = autoAssignTables([], DEFAULT_TABLES, '19:00', 10);
+  it('a party of 17+ takes the whole restaurant and blocks remaining tables', () => {
+    const result = autoAssignTables([], DEFAULT_TABLES, '19:00', 18);
     expect(result).not.toBeNull();
     expect(result!.tableIds).toHaveLength(5);
     expect(result!.tableName).toBe(FULL_RESTAURANT_LABEL);
 
     // Once a large party is booked, nothing else fits in the window
     const existing: ReservationSlot[] = [
-      { time: '19:00', guests: 10, status: 'confirmed', tableIds: result!.tableIds },
+      { time: '19:00', guests: 18, status: 'confirmed', tableIds: result!.tableIds },
     ];
     expect(autoAssignTables(existing, DEFAULT_TABLES, '19:30', 2)).toBeNull();
     expect(autoAssignTables(existing, DEFAULT_TABLES, '21:00', 2)).not.toBeNull();
   });
 
-  it('rejects a 10+ party when any table is already taken', () => {
+  it('rejects a 17+ party when any table is already taken', () => {
     const existing: ReservationSlot[] = [
       { time: '19:00', guests: 2, status: 'confirmed', tableIds: ['mesa_3'] },
     ];
-    expect(autoAssignTables(existing, DEFAULT_TABLES, '19:00', 12)).toBeNull();
+    expect(autoAssignTables(existing, DEFAULT_TABLES, '19:00', 18)).toBeNull();
+  });
+
+  it('assigns progressive tables based on capacity', () => {
+    const result = autoAssignTables([], DEFAULT_TABLES, '19:00', 10);
+    expect(result).not.toBeNull();
+    expect(result!.tableIds).toHaveLength(3);
+
+    const existing: ReservationSlot[] = [
+      { time: '19:00', guests: 10, status: 'confirmed', tableIds: result!.tableIds },
+    ];
+    const secondResult = autoAssignTables(existing, DEFAULT_TABLES, '19:00', 4);
+    expect(secondResult).not.toBeNull();
+    expect(secondResult!.tableIds).toHaveLength(1);
   });
 
   it('ignores cancelled reservations', () => {

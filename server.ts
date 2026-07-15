@@ -532,8 +532,14 @@ async function startServer() {
       return res.status(400).json({ error: "invalid_contact", message: "Datos de contacto inválidos." });
     }
     if (mode === "table") {
-      if (!TIME_RE.test(time) || !TIME_SLOTS.includes(time)) {
-        return res.status(400).json({ error: "invalid_time", message: "Hora inválida." });
+      const targetDate = new Date(`${date}T12:00:00`);
+      const dayOfWeek = targetDate.getDay();
+      const isFriSat = dayOfWeek === 5 || dayOfWeek === 6;
+      const maxTime = isFriSat ? "21:00" : "19:00";
+      const daySlots = TIME_SLOTS.filter(s => s <= maxTime);
+
+      if (!TIME_RE.test(time) || !daySlots.includes(time)) {
+        return res.status(400).json({ error: "invalid_time", message: "Hora inválida para el día seleccionado." });
       }
       if (!Number.isInteger(guests) || guests < 1 || guests > 20) {
         return res.status(400).json({ error: "invalid_guests", message: "Número de comensales inválido." });
