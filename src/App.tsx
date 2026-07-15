@@ -610,9 +610,9 @@ export default function App() {
                         <div className="absolute inset-0 bg-dark/20 group-hover:bg-transparent transition-colors" />
                       </div>
                       <span className="text-[9px] uppercase tracking-[0.4em] text-gold mb-3 block">{item.tag}</span>
-                      <h4 className="text-2xl sm:text-3xl font-serif font-light mb-4 tracking-tight min-h-[2.5rem] flex items-center">{item.title}</h4>
+                      <h4 className="text-2xl sm:text-3xl font-serif font-light mb-4 tracking-tight min-h-[4rem] flex items-start">{item.title}</h4>
                     </div>
-                    <p className="text-stone-500 font-light text-sm leading-relaxed tracking-wide italic min-h-[6.5rem]">{item.desc}</p>
+                    <p className="text-stone-500 font-light text-sm leading-relaxed tracking-wide italic h-[8rem] overflow-hidden">{item.desc}</p>
                   </motion.div>
                 );
               })}
